@@ -1,7 +1,7 @@
 ---
 name: agent-company
 description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company "your goal" to start, or /agent-company resume to continue.
-argument-hint: "[goal | resume | status]"
+argument-hint: "[goal | init | resume | status | lang zh/en]"
 ---
 
 # /agent-company
@@ -12,6 +12,7 @@ Start a virtual dev team — a Leader Agent breaks down your goal into tasks via
 
 - `$ARGUMENTS` may contain:
   - A task goal (e.g. `"add login module"`) — **appends to existing DAG** (default when leader.json exists)
+  - `init` — **analyzes existing codebase + docs**, generates leader.json with all discovered modules as completed tasks. No Worker execution. See Init Mode below.
   - `new "task goal"` — starts a **fresh session**, replacing existing DAG
   - `resume` — restores the last session and continues unfinished tasks
   - `status` — shows current session progress without starting work
@@ -22,6 +23,65 @@ Start a virtual dev team — a Leader Agent breaks down your goal into tasks via
 When a leader.json already exists and user provides a new goal:
 - **Default (append)**: Leader reads the current DAG + existing module docs → analyzes the NEW goal → appends new tasks to the DAG → preserves existing task IDs and statuses → increments task numbering from the last used ID.
 - **`new` flag**: Wipes leader.json and starts fresh.
+
+### Init Mode
+
+When `.mycompany/` does NOT exist yet (or user explicitly runs `/agent-company init` on an existing project), this mode analyzes the entire existing codebase and generates a `leader.json` where every discovered business module becomes a **completed** task. This gives the AI a complete picture of what's already built before you issue your first work goal.
+
+**What Init Does:**
+
+1. Scan `docs/` — read all documentation: `FUNCTIONAL_SPEC.md`, `UI_GUIDE.md`, `modules/*.md`, and any other `.md` files
+2. Scan `src/` — understand directory structure, identify modules from actual code (stores/, api/, utils/, components/, pages/, config/, router/)
+3. Read `README.md` — understand project overview and architecture
+4. Read key config files — `package.json`, `vite.config.js`, `pages.json`, `manifest.json`
+5. Dispatch a **Leader** agent with an init-specific prompt (see below)
+6. Leader produces `leader.json` where:
+   - Each discovered module is a task with `status: "completed"`, `assignedWorker: "init"`, `createdAt` set to init time
+   - Task descriptions summarize what the module does (from docs + code)
+   - `outputFiles` list actual source files belonging to each module
+   - `dependencies` inferred from import relationships and doc references
+   - `architectureLayers` groups modules by layer
+   - `designDecisions` records key architectural patterns observed in the codebase
+   - `overlapAnalysis` is null (no new goal to analyze yet)
+7. Proceed to **Phase 1.5** (DAG visualization) — user can see the full business landscape in browser
+8. **Skip Phase 2** — no Workers dispatched (all tasks are already completed)
+
+**Init Leader Prompt Requirements:**
+
+The Leader agent dispatched for `init` MUST produce a `leader.json` with:
+
+- `sessionId`: auto-generated
+- `goal`: extracted from project README or package.json description
+- `createdAt`: ISO timestamp
+- `status`: `"baseline"` (indicates this is a snapshot of existing code, not a work session)
+- `architectureLayers`: modules grouped by layer (e.g., L0_Config, L1_Foundation, L2_Business, L3_Pages, L4_UI)
+- `designDecisions`: key patterns found (e.g., "Pinia stores with reset pattern", "Feature flags via isFeatureEnabled", "Guard pipeline for routing")
+- `dag[]`: one task per discovered module, all `status: "completed"`
+  - Each task: `taskId`, `title`, `description` (2-3 sentence summary from docs), `status: "completed"`, `assignedWorker: "init"`, `outputFiles` (actual paths), `dependencies` (inferred), `createdAt`
+- `overlapAnalysis`: `null`
+
+**Init Task Schema (stored in dag[]):**
+```json
+{
+  "taskId": "M1",
+  "title": "配置系统 & 功能开关",
+  "description": "全局配置中心，包含环境预设（dev/staging/prod）、功能开关（8 个 feature flags）、分页默认值、业务规则。所有模块通过 isFeatureEnabled() 进行功能门控。",
+  "status": "completed",
+  "assignedWorker": "init",
+  "createdAt": "2026-05-22T10:00:00+08:00",
+  "outputFiles": ["src/config/index.js", "src/config/env.js"],
+  "dependencies": []
+}
+```
+
+**Init vs Bootstrap:**
+
+- Phase 0 bootstrap creates an **empty** `.mycompany/` and `leader.json` skeleton
+- Init mode fills `leader.json` with the **actual business modules** discovered in the codebase
+- Init mode is triggered when: (a) `.mycompany/` doesn't exist, OR (b) user explicitly says `/agent-company init`
+- After init, subsequent `/agent-company "new goal"` calls have full context for overlap analysis
+
+---
 
 ## Language Configuration
 
@@ -136,15 +196,107 @@ If `userId` is not set, prompt the user to set it on first `/agent-company` run.
 
 ## Phase 0 — Session Bootstrap
 
-1. Check if `.mycompany/` exists. If not, run init:
+1. Check if `.mycompany/` exists. If not:
    - Create `.mycompany/config.json` with `{ "language": "zh" }`
-   - Create `.mycompany/sessions/leader.json`
+   - Create `.mycompany/sessions/leader.json` (empty skeleton)
    - Create `.mycompany/memory/project.md`
    - Create `.mycompany/memory/decisions.md`
    - Create `.mycompany/tasks/inbox.md` and `.mycompany/tasks/completed.md`
+   - **If user invoked `/agent-company init`**: proceed to **Phase 0.5 — Init Analysis** (see below). DO NOT create an empty leader.json — init will generate the full one.
+   - **If user provided a goal** (and `.mycompany/` didn't exist): create the skeleton, then proceed to Phase 1.
 2. If `resume`, load Leader state from `.mycompany/sessions/leader.json`, read language from `.mycompany/config.json`, and restore context.
 3. If `status`, read session files and display current progress.
 4. If `lang <code>`, update `.mycompany/config.json` language field, regenerate `dag.html` if it exists, and confirm to user.
+5. If `init` (and `.mycompany/` already exists, e.g. re-init), confirm with user before overwriting `leader.json`.
+
+### Phase 0.5 — Init Analysis (triggered by `/agent-company init`)
+
+When the user runs `/agent-company init`, instead of creating an empty skeleton, the agent MUST analyze the existing codebase and generate a comprehensive `leader.json`:
+
+**Step 0.5.1 — Read Documentation**
+
+Read ALL of the following (if they exist):
+- `README.md` — project overview, architecture, tech stack
+- `docs/FUNCTIONAL_SPEC.md` — functional specification
+- `docs/UI_GUIDE.md` — UI design guidelines
+- `docs/modules/*.md` — each module's documentation
+- `package.json` — dependencies, scripts
+- `pages.json` — route/page structure (uni-app)
+- `manifest.json` — app manifest
+
+**Step 0.5.2 — Scan Source Code Structure**
+
+Identify modules from actual directory layout:
+- `src/config/` — configuration
+- `src/stores/` — Pinia stores (one per business domain)
+- `src/api/` — API layer
+- `src/utils/` — utility functions
+- `src/components/` — shared components
+- `src/pages/` — page structure (organized by role/feature)
+- `src/router/` — routing/guards
+- Any other top-level `src/` directories
+
+**Step 0.5.3 — Dispatch Leader for Init**
+
+Dispatch a **Leader** agent with this prompt:
+
+```
+You are analyzing an EXISTING codebase to create a baseline DAG. This is NOT a work session — you are documenting what already exists.
+
+## What to Do
+Read the project's documentation and source code to understand the current business modules. Then produce a leader.json where each discovered module is a completed task.
+
+## Steps
+1. Read docs/FUNCTIONAL_SPEC.md to understand the overall system
+2. Read docs/UI_GUIDE.md to understand visual standards
+3. Read docs/modules/*.md — each doc describes one business module
+4. Scan src/ directories to verify file existence and understand structure
+5. Read README.md for project context
+
+## Output: leader.json
+Write to .mycompany/sessions/leader.json with:
+
+- sessionId: "init-001"
+- goal: extracted from README description or package.json
+- createdAt: current ISO timestamp
+- status: "baseline"
+- architectureLayers: group modules into layers (L0_Config, L1_Foundation, L2_Business, L3_Pages, L4_UI)
+- designDecisions: 3-5 key architectural patterns observed (e.g. "Feature flags via isFeatureEnabled", "Guard pipeline for routing")
+- dag[]: one task per discovered module, ALL with status: "completed"
+  - taskId: "M1", "M2", ...
+  - title: short module name
+  - description: 2-3 sentence summary of what the module does
+  - status: "completed"
+  - assignedWorker: "init"
+  - createdAt: current ISO timestamp
+  - outputFiles: actual source files belonging to this module (verified paths)
+  - dependencies: inferred from imports and doc references
+  - data-layer: which architecture layer this belongs to
+- overlapAnalysis: null (no new goal to analyze)
+
+## Constraints
+- Only document what ACTUALLY EXISTS in the codebase. Do not invent modules.
+- Verify file paths exist before listing them in outputFiles.
+- Inferred dependencies must be based on actual import statements or doc references.
+- Module count depends on the project — typically 8-15 modules.
+- Write NO comments in JSON.
+```
+
+**Step 0.5.4 — Verify leader.json**
+
+After Leader writes leader.json:
+1. Read the generated file to check it's valid JSON and well-formed
+2. Verify a few random `outputFiles` paths actually exist on disk
+3. If issues found, ask Leader to fix
+
+**Step 0.5.5 — Proceed to DAG Visualization**
+
+After leader.json is verified, proceed to **Phase 1.5** (Visual DAG Confirmation). This lets the user see their existing business landscape as a node graph in the browser.
+
+Do NOT enter Phase 2 (Worker Execution) — all tasks are `completed` baseline tasks, not work to execute.
+
+After DAG is shown, tell the user:
+> 项目基线已生成，共发现 X 个业务模块。你可以在浏览器中查看完整的业务全景图。现在可以随时用 `/agent-company "你的需求"` 追加新任务，Leader 会自动分析哪些模块可以复用。
 
 ## Phase 1 — Leader Decomposition
 
