@@ -140,9 +140,14 @@ Reset re-analyzes the codebase from scratch (same analysis as init), but first *
 You are reviewing a project that has been developed by multiple Workers over time. Your job is to find what's getting messy and propose concrete improvements.
 
 ### What to Analyze
-1. **Worker Activity Review**: Read .mycompany/sessions/workers/*.json — who did what? Were there repeated patterns of failure or rework?
+1. **Worker Activity Review**: Read .mycompany/sessions/workers/*.json — analyze each Worker:
+   - Repeated failures or rework by the same Worker?
+   - Which Workers touched the same files repeatedly? (→ merge candidate)
+   - Any Worker that only did 1 small task and never again? (→ remove candidate)
+   - Any Worker whose outputFiles span 5+ unrelated files? (→ split candidate)
+   - Which Workers have domain overlap (same modules, same docs)?
 2. **Code-Doc Drift**: Compare docs/modules/*.md against actual source files. Are docs stale? Are there modules with no docs?
-3. **Git History Patterns**: Run git log --oneline -30. Which files change most often? Are there merge conflicts suggesting poor module boundaries?
+3. **Git History Patterns**: Run git log --oneline -30. Which files change most often? Hot files may indicate poor boundaries. Merge conflicts?
 4. **Architecture Smells**: Check for:
    - Circular dependencies between modules
    - Files that grew too large (500+ lines) — candidates for splitting
@@ -150,42 +155,87 @@ You are reviewing a project that has been developed by multiple Workers over tim
    - Modules with too many dependencies (fragile)
    - Dead code or unused exports
    - Feature flags that are always true (ready to remove)
-5. **Module Doc Freshness**: For each module doc in docs/modules/, check if the listed outputFiles still exist and whether the doc's description still matches the code.
+5. **Module Doc Freshness**: For each module doc, check if outputFiles still exist and whether the doc still matches the code.
+6. **Worker Structure**: Based on all the above, recommend restructuring:
+   - **Merge**: Two Workers consistently touching same files/modules → merge into one
+   - **Split**: One Worker with 5+ unrelated outputFiles → split into specialized Workers
+   - **Remove**: Worker whose module is stable (no changes in 20+ commits) → retire
+   - **Keep**: Structure is fine — leave unchanged
 
-### Output: Append to leader.json
-Write your findings as NEW tasks appended to the DAG (do NOT modify existing tasks). Increment task IDs from the last used ID.
+### Output
+Write TWO things to leader.json:
 
-Each finding becomes a task:
-- taskId: next available (e.g., "F1", "F2", ...)
-- title: short description of the improvement
+#### 1. Tasks (append to dag[])
+New optimization tasks. Do NOT modify existing tasks. Increment task IDs.
+
+Each task:
+- taskId: prefixed by category letter (R1, D1, W1, ...)
+- title: short description
 - description: what's wrong + what to change + why
 - acceptanceCriteria: 3-5 verifiable outcomes
 - dependencies: existing task IDs this depends on
 - status: "pending"
+- assignedWorker: if W task, which worker(s) affected
 - outputFiles: files that will be modified
-- tags: ["fresh"] (marks this as an architecture improvement task)
+- tags: ["fresh"]
+
+#### 2. Worker Restructure Plan (new top-level field: workerRestructure)
+```json
+{
+  "workerRestructure": {
+    "analyzedAt": "ISO timestamp",
+    "summary": "合并 w2+w4→worker-order；拆分 w7→worker-chat+worker-lesson；移除 w11",
+    "changes": [
+      {
+        "action": "merge",
+        "fromWorkers": ["worker-w2", "worker-w4"],
+        "toWorker": "worker-order",
+        "reason": "两人都处理订单相关模块，outputFiles 重叠 80%",
+        "taskId": "W1"
+      },
+      {
+        "action": "split",
+        "fromWorker": "worker-w7",
+        "toWorkers": ["worker-chat", "worker-lesson"],
+        "reason": "outputFiles 涵盖聊天和课程两个独立领域",
+        "taskId": "W2"
+      },
+      {
+        "action": "remove",
+        "fromWorker": "worker-w11",
+        "reason": "模块已稳定 20+ 提交无变动，文档完整",
+        "taskId": "W3"
+      }
+    ],
+    "unchangedWorkers": ["worker-w1", "worker-w3", "worker-w5"]
+  }
+}
+```
 
 ### Task Categories (prefix taskId with letter):
 - **R** (Refactor): split large files, reduce coupling, simplify
 - **D** (Docs): update stale module docs, add missing docs
 - **C** (Cleanup): remove dead code, retire old feature flags, delete unused files
 - **P** (Performance): optimize slow paths, reduce bundle size
+- **W** (Worker): merge/split/remove Workers, reassign their tasks
 
 ### Constraints
 - Only propose tasks that are WORTH DOING. A 200-line file is not "too large."
-- Each task must be small enough for one Worker to complete.
+- Each task small enough for one Worker to complete. Max 8 tasks total.
 - Do NOT propose rewriting the entire codebase. Be surgical.
-- Max 8 tasks total. Prioritize by impact.
-- Write findings to leader.json (append to dag[], do NOT touch existing tasks).
+- Worker restructure is OPTIONAL — if structure is fine, set `changes: []` and skip W tasks.
+- Append to dag[], do NOT touch existing tasks.
+- Write workerRestructure as a new top-level field in leader.json.
 ```
 
-3. **Review Leader's Output**: Read the updated leader.json, verify the new tasks make sense, remove any that feel low-value.
-4. Proceed to **Phase 1.5** (DAG visualization) — user sees the new optimization tasks in the DAG.
-5. User confirms → **Phase 2** (Worker execution) for the fresh tasks.
+3. **Review Leader's Output**: Read the updated leader.json, verify the new tasks make sense, remove any that feel low-value. Pay special attention to the `workerRestructure` field — do the merge/split/remove recommendations make sense? If the Worker structure is fine, ensure `workerRestructure.changes` is an empty array `[]`.
+4. Proceed to **Phase 1.5** (DAG visualization) — user sees the new optimization tasks AND Worker restructure plan in the DAG.
+5. User confirms → **Phase 2** (Worker execution) for the fresh tasks. **W tasks (Worker restructure) execute first**, before R/D/C/P tasks, because they affect which Workers handle subsequent work.
 
 **After Fresh Tasks Complete:**
 - Workers update module docs if changes were made
 - The project gets incrementally healthier without big-bang rewrites
+- If Workers were restructured (W tasks completed), update `assignedWorker` on all existing tasks that were affected
 
 
 
