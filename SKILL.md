@@ -148,7 +148,48 @@ If `userId` is not set, prompt the user to set it on first `/agent-company` run.
 
 ## Phase 1 — Leader Decomposition
 
-1. Dispatch **leader** agent with the user's goal.
+### Step 0 — Business Overlap Analysis (MANDATORY when leader.json exists)
+
+Before decomposing a new goal, Leader MUST:
+
+1. **Read existing module docs** — `docs/modules/*.md` (overview + core files + interfaces + dependencies per module)
+2. **Read current DAG** — `.mycompany/sessions/leader.json` (what's built, what's in progress)
+3. **Analyze overlap** — for each requirement in the new goal:
+
+```
+新需求: "接入真实微信登录"
+    │
+    ├─ 检查 docs/modules/auth.md 
+    │     → 已有 loginByWechatCode、userStore、token 管理
+    │     → ✅ 复用 auth 模块
+    │
+    ├─ 检查 docs/modules/api-layer.md
+    │     → 已有 errorHandler、request 拦截器
+    │     → ✅ 复用 API 层
+    │
+    └─ 新依赖: 微信 SDK 配置
+          → 🆕 需新建 wx-config 模块
+```
+
+Output `overlapAnalysis` in leader.json:
+
+```json
+{
+  "overlapAnalysis": {
+    "analyzedAt": "ISO timestamp",
+    "existingModulesAffected": [
+      {"module": "auth", "doc": "docs/modules/auth.md", "how": "扩展 login 流程接入真实 wx.login"},
+      {"module": "api-layer", "doc": "docs/modules/api-layer.md", "how": "复用 request 拦截器注入真实 token"}
+    ],
+    "newModulesNeeded": [],
+    "reusedWorkers": ["worker-w2"]
+  }
+}
+```
+
+### Step 1 — Decompose
+
+1. Dispatch **leader** agent with the user's goal + overlap analysis context.
 2. Leader analyzes the goal and produces a DAG of subtasks.
 3. Each subtask includes: description, dependencies, assigned worker ID, expected output.
 4. DAG is written to `.mycompany/sessions/leader.json`.
@@ -156,9 +197,11 @@ If `userId` is not set, prompt the user to set it on first `/agent-company` run.
 **Leader Prompt Requirements:**
 
 The Leader agent MUST produce a leader.json that includes:
-- `architectureLayers` — grouping tasks by layer (e.g., `L0_Config`, `L1_Foundation`, `L2_Structure`, `L3_Features`, `L4_Integration`)
+- `overlapAnalysis` — which existing modules/docs/workers are reused (see Step 0)
+- `architectureLayers` — grouping tasks by layer
 - `designDecisions` — key architectural choices
 - Each task MUST have an **`acceptanceCriteria`** field — a numbered checklist of concrete, verifiable outcomes that define "done" for that task. These are the gates the Reviewer uses after Worker completion.
+- Each task MUST tag whether it `reusesModule` (extends existing code, Worker must read that module's doc first) or `newModule` (greenfield, Worker creates new doc)
 
 **Task Schema (required fields):**
 ```json
