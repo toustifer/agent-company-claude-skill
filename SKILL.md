@@ -1,10 +1,10 @@
 ---
-name: company
-description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /company "your goal" to start, or /company resume to continue.
+name: agent-company
+description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company "your goal" to start, or /agent-company resume to continue.
 argument-hint: "[goal | resume | status]"
 ---
 
-# /company
+# /agent-company
 
 Start a virtual dev team — a Leader Agent breaks down your goal into tasks via DAG, distributes them to Worker Agents, and Workers execute independently with tool access. All state persists to `.mycompany/`, so sessions survive restarts.
 
@@ -26,9 +26,9 @@ Language is stored in `.mycompany/config.json`:
 ```
 
 **On first init** (Phase 0, step 1), default to `"zh"` if not specified.
-**On any `/company` invocation**, check `.mycompany/config.json`. If `language` is set, use that language for all generated output.
+**On any `/agent-company` invocation**, check `.mycompany/config.json`. If `language` is set, use that language for all generated output.
 **To change language:** 
-- CLI: `/company lang en` or `/company lang zh` — updates both `.mycompany/config.json` and `.mycompany/sessions/lang.json`. The DAG HTML detects the change on next poll.
+- CLI: `/agent-company lang en` or `/agent-company lang zh` — updates both `.mycompany/config.json` and `.mycompany/sessions/lang.json`. The DAG HTML detects the change on next poll.
 - UI: The DAG page has **中文 / EN** toggle buttons in the stats bar. Click to switch all UI labels instantly without reload.
 
 ### Language Mapping
@@ -59,7 +59,7 @@ Language is stored in `.mycompany/config.json`:
 
 ## Multi-User Collaboration (Git as Distributed Lock)
 
-When multiple people use `/company` on the same project, they coordinate through the shared Git repository. **A successful `git push` is the lock.**
+When multiple people use `/agent-company` on the same project, they coordinate through the shared Git repository. **A successful `git push` is the lock.**
 
 ### How It Works
 
@@ -123,7 +123,7 @@ Set in `.mycompany/config.json`:
 }
 ```
 
-If `userId` is not set, prompt the user to set it on first `/company` run. This is the name that shows in `claimedBy` and `assignedWorker`.
+If `userId` is not set, prompt the user to set it on first `/agent-company` run. This is the name that shows in `claimedBy` and `assignedWorker`.
 
 ---
 
@@ -197,7 +197,7 @@ cd ".mycompany/sessions" && python3 -m http.server 8765
 
 Run with `run_in_background: true`. The server stays alive across turns. If port 8765 is taken, try 8766, 8767, etc.
 
-**On subsequent `/company resume` or `/company status`**: check if the server is still running (try `curl http://localhost:8765/leader.json`). If not, restart it.
+**On subsequent `/agent-company resume` or `/agent-company status`**: check if the server is still running (try `curl http://localhost:8765/leader.json`). If not, restart it.
 
 ### Step 2: Copy DAG HTML Template
 
@@ -207,7 +207,7 @@ Run with `run_in_background: true`. The server stays alive across turns. If port
 cp "$SKILL_DIR/dag-template.html" ".mycompany/sessions/dag.html"
 ```
 
-(The template is at `skills/company/dag-template.html` relative to the skills directory.)
+(The template is at `skills/agent-company/dag-template.html` relative to the skills directory.)
 
 **The HTML is a pure renderer** — it reads all task data from `http://localhost:8765/leader.json` via `fetch()`. It has NO project-specific content hardcoded. All labels, states, and UI come from the leader.json data and the built-in bilingual label sets.
 
@@ -329,7 +329,7 @@ Every Worker agent MUST receive a prompt with these sections:
 
 ### Phase 2.5 — Review Gate (MANDATORY)
 
-After each Worker finishes, the Reviewer (the agent running /company) MUST:
+After each Worker finishes, the Reviewer (the agent running /agent-company) MUST:
 
 1. **Check each acceptance criterion** one by one against the actual file changes
 2. **Read the changed files** — do not trust the Worker's summary alone

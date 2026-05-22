@@ -1,4 +1,4 @@
-# /company — Claude Code Virtual Dev Team
+# /agent-company — Claude Code Virtual Dev Team
 
 A Claude Code skill that turns your AI into a multi-agent dev team. A **Leader Agent** decomposes goals into a DAG of tasks, **Worker Agents** execute independently in parallel, and a **live DAG viewer** shows real-time progress in your browser. Multi-user collaboration via **Git as distributed lock**.
 
@@ -6,10 +6,10 @@ A Claude Code skill that turns your AI into a multi-agent dev team. A **Leader A
 
 ```bash
 # 1. Install (clone into Claude Code skills directory)
-git clone https://github.com/<your-org>/company-skill.git ~/.claude/skills/company/
+git clone https://github.com/<your-org>/agent-company-skill.git ~/.claude/skills/agent-company/
 
 # 2. In any project directory, start a session
-/company "build a login module"
+/agent-company "build a login module"
 
 # 3. After Leader finishes decomposition, view the DAG
 open http://localhost:8765/dag.html
@@ -18,13 +18,13 @@ open http://localhost:8765/dag.html
 confirm
 
 # 5. Resume later
-/company resume
+/agent-company resume
 ```
 
 ## How It Works
 
 ```
-/company "goal"
+/agent-company "goal"
     │
     ▼
 Phase 1: Leader decomposes → leader.json (DAG)
@@ -52,7 +52,7 @@ Phase 3: Aggregation & summary
 
 ## Multi-User Collaboration
 
-When teammates use `/company` on the same Git repo:
+When teammates use `/agent-company` on the same Git repo:
 
 ```
 User A: git pull → claim T5 → commit+push ✅ (lock acquired)
