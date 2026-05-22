@@ -11,10 +11,17 @@ Start a virtual dev team — a Leader Agent breaks down your goal into tasks via
 ## Options
 
 - `$ARGUMENTS` may contain:
-  - A task goal (e.g. `"add login module"`) — starts a new session
+  - A task goal (e.g. `"add login module"`) — **appends to existing DAG** (default when leader.json exists)
+  - `new "task goal"` — starts a **fresh session**, replacing existing DAG
   - `resume` — restores the last session and continues unfinished tasks
   - `status` — shows current session progress without starting work
   - `lang zh` or `lang en` — switch display language (default: zh)
+
+### Append vs New
+
+When a leader.json already exists and user provides a new goal:
+- **Default (append)**: Leader reads the current DAG + existing module docs → analyzes the NEW goal → appends new tasks to the DAG → preserves existing task IDs and statuses → increments task numbering from the last used ID.
+- **`new` flag**: Wipes leader.json and starts fresh.
 
 ## Language Configuration
 
@@ -296,6 +303,12 @@ Every Worker agent MUST receive a prompt with these sections:
 
 ### Acceptance Criteria (MUST satisfy ALL)
 {Numbered list from leader.json acceptanceCriteria}
+
+### Project Knowledge (READ FIRST)
+**Before touching any code, read these docs to understand what's already built:**
+- `docs/modules/` — all existing module docs (每个 Worker 留下的模块文档)
+- Focus especially on modules your task depends on (listed in dependencies above)
+- This is how you inherit knowledge from previous Workers
 
 ### Files You Will Touch
 {outputFiles list}
