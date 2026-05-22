@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知迹伴学 · 任务依赖图</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --pending: #f1f5f9;
+  --pending-border: #94a3b8;
+  --pending-text: #475569;
+  --ready: #fffbeb;
+  --ready-border: #f59e0b;
+  --ready-text: #92400e;
+  --blocked: #f8fafc;
+  --blocked-border: #e2e8f0;
+  --blocked-text: #94a3b8;
+  --in-progress: #dbeafe;
+  --in-progress-border: #3b82f6;
+  --in-progress-text: #1e40af;
+  --completed: #dcfce7;
+  --completed-border: #22c55e;
+  --completed-text: #166534;
+  --layer-bg: #f8fafc;
+  --arrow: #cbd5e1;
+  --bg: #ffffff;
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --card-hover-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: #f1f5f9;
+  color: var(--text);
+  line-height: 1.5;
+  padding: 24px;
+}
+
+.stats-bar {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--card-shadow);
+  flex-wrap: wrap;
+}
+.stats-goal { font-weight: 600; font-size: 15px; margin-right: auto; }
+.stat-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+.stat-dot { width: 10px; height: 10px; border-radius: 50%; }
+.stat-dot.pending { background: var(--pending-border); }
+.stat-dot.ready { background: var(--ready-border); }
+.stat-dot.blocked { background: var(--blocked-border); }
+.stat-dot.in-progress { background: var(--in-progress-border); }
+.stat-dot.completed { background: var(--completed-border); }
+
+.conn-status { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.conn-dot { width: 8px; height: 8px; border-radius: 50%; }
+.conn-dot.online { background: #22c55e; }
+.conn-dot.offline { background: #ef4444; }
+
+.lang-switch { margin-left: 8px; }
+.lang-switch button {
+  font-size: 11px; padding: 2px 8px; border: 1px solid var(--border);
+  background: var(--bg); border-radius: 4px; cursor: pointer; color: var(--text-secondary);
+}
+.lang-switch button.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+
+.legend {
+  position: fixed; top: 24px; right: 24px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 18px; font-size: 12px;
+  box-shadow: var(--card-shadow); z-index: 100;
+}
+.legend .item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.legend .item:last-child { margin-bottom: 0; }
+.legend .swatch { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid; }
+.swatch.pending { background: var(--pending); border-color: var(--pending-border); }
+.swatch.ready { background: var(--ready); border-color: var(--ready-border); }
+.swatch.blocked { background: var(--blocked); border-color: var(--blocked-border); }
+.swatch.in-progress { background: var(--in-progress); border-color: var(--in-progress-border); }
+.swatch.completed { background: var(--completed); border-color: var(--completed-border); }
+
+.dag-container {
+  position: relative; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--card-shadow); overflow: auto; min-height: 300px;
+}
+
+.loading-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 80px 24px; color: var(--text-secondary);
+}
+.loading-spinner {
+  width: 36px; height: 36px; border: 3px solid var(--border);
+  border-top-color: #6366f1; border-radius: 50%;
+  animation: spin 0.7s linear infinite; margin-bottom: 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-state { text-align: center; padding: 60px 24px; color: var(--text-secondary); }
+.error-state .retry-btn {
+  margin-top: 16px; padding: 8px 24px; background: #6366f1; color: #fff;
+  border: none; border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+
+.layer { padding: 20px 24px 24px 24px; border-bottom: 1px solid var(--border); }
+.layer:last-child { border-bottom: none; }
+.layer-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.layer-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-secondary);
+  background: var(--layer-bg); padding: 4px 10px; border-radius: 6px;
+}
+.layer-name { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+.nodes-row { display: flex; flex-wrap: wrap; gap: 16px; }
+
+.node {
+  background: var(--bg); border: 2px solid var(--pending-border);
+  border-radius: 10px; padding: 14px 16px; min-width: 180px; max-width: 240px;
+  cursor: pointer; transition: all 0.15s ease;
+  box-shadow: var(--card-shadow); flex: 1 1 180px; user-select: none;
+  position: relative;
+}
+.node:hover { box-shadow: var(--card-hover-shadow); transform: translateY(-1px); }
+
+/* 阻塞态：依赖未满足，虚线圈，偏淡 */
+.node.blocked { border-style: dashed; border-color: var(--blocked-border); opacity: 0.65; background: var(--blocked); }
+.node.blocked:hover { opacity: 0.85; }
+
+/* 就绪态：依赖全满足，橙色边框强调 */
+.node.ready { border-color: var(--ready-border); background: var(--ready); }
+
+/* 执行中：蓝色 + 呼吸脉冲 */
+.node.in-progress {
+  background: var(--in-progress); border-color: var(--in-progress-border);
+  animation: pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.35); }
+  50% { box-shadow: 0 0 0 8px rgba(59,130,246,0.06); }
+}
+
+/* 已完成：绿色 + 右上角 ✓ */
+.node.completed { background: var(--completed); border-color: var(--completed-border); }
+.node.completed::after {
+  content: '✓';
+  position: absolute; top: -8px; right: -8px;
+  width: 22px; height: 22px;
+  background: var(--completed-border); color: #fff;
+  border-radius: 50%; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+}
+
+/* 执行中节点加 spinner 小图标 */
+.node.in-progress .task-id::before {
+  content: '◉ ';
+  color: var(--in-progress-border);
+  animation: spin 1.5s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.node.active { border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); animation: none !important; }
+
+/* Worker 芯片 */
+.node .worker-chip {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  background: #ede9fe; color: #7c3aed;
+  padding: 2px 8px; border-radius: 999px; margin-top: 6px;
+}
+.node .task-id {
+  font-size: 11px; font-weight: 700; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px;
+}
+.node .task-title { font-size: 14px; font-weight: 600; line-height: 1.3; margin-bottom: 8px; }
+.node .task-meta { display: flex; gap: 10px; font-size: 11px; color: var(--text-secondary); }
+.node .status-badge { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+.status-badge.pending { background: var(--pending); color: var(--pending-text); }
+.status-badge.ready { background: var(--ready); color: var(--ready-text); }
+.status-badge.blocked { background: var(--blocked); color: var(--blocked-text); }
+.status-badge.in-progress { background: var(--in-progress); color: var(--in-progress-text); }
+.status-badge.completed { background: var(--completed); color: var(--completed-text); }
+
+.detail-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15,23,42,0.2); z-index: 200;
+  display: none; align-items: center; justify-content: center;
+}
+.detail-overlay.show { display: flex; }
+.detail-panel {
+  background: var(--bg); border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  max-width: 580px; width: 90%; max-height: 80vh;
+  overflow-y: auto; padding: 28px; position: relative;
+}
+.detail-panel .close-btn {
+  position: absolute; top: 14px; right: 16px;
+  width: 32px; height: 32px; border: none;
+  background: var(--layer-bg); border-radius: 50%;
+  font-size: 18px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  color: var(--text-secondary);
+}
+.detail-panel .close-btn:hover { background: var(--pending); }
+.detail-id { font-size: 12px; font-weight: 700; color: #6366f1; margin-bottom: 4px; }
+.detail-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+.detail-section { margin-bottom: 18px; }
+.detail-section h4 {
+  font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;
+}
+.detail-section p { font-size: 14px; line-height: 1.7; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-size: 12px; background: var(--layer-bg);
+  color: var(--text-secondary); padding: 4px 10px;
+  border-radius: 6px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.arrow-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1; }
+.arrow-svg path { stroke: var(--arrow); stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+</style>
+</head>
+<body>
+
+<div class="stats-bar" id="statsBar">
+  <span class="stats-goal" id="statsGoal">🎯 加载中...</span>
+  <span class="conn-status">
+    <span class="conn-dot offline" id="connDot"></span>
+    <span id="connText">连接中...</span>
+  </span>
+  <span style="font-size:11px;color:var(--text-secondary)" id="lastUpdate"></span>
+  <span class="lang-switch">
+    <button id="btnZh" class="active" onclick="switchLang('zh')">中文</button>
+    <button id="btnEn" onclick="switchLang('en')">EN</button>
+  </span>
+  <span class="stat-item"><span id="lblTotal">总计</span>：<strong id="statTotal">-</strong></span>
+  <span class="stat-item"><span class="stat-dot completed"></span> <span id="lblCompleted">已完成</span>：<strong id="statCompleted">-</strong></span>
+  <span class="stat-item"><span class="stat-dot in-progress"></span> <span id="lblInProgress">进行中</span>：<strong id="statInProgress">-</strong></span>
+  <span class="stat-item"><span class="stat-dot ready"></span> <span id="lblReady">可执行</span>：<strong id="statReady">-</strong></span>
+  <span class="stat-item"><span class="stat-dot blocked"></span> <span id="lblBlocked">阻塞中</span>：<strong id="statBlocked">-</strong></span>
+</div>
+
+<div class="legend" id="legendBox"></div>
+
+<div class="dag-container" id="dagContainer">
+  <svg class="arrow-svg" id="arrowSvg"><defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cbd5e1"/></marker></defs></svg>
+  <div class="loading-state" id="loadingState">
+    <div class="loading-spinner"></div>
+    <p>正在加载任务数据...</p>
+  </div>
+</div>
+
+<div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this)hideDetail()">
+  <div class="detail-panel" id="detailPanel"></div>
+</div>
+
+<script>
+var DATA_URL = 'leader.json';
+var POLL_INTERVAL = 2000;
+var lastJson = '';
+var currentLang = 'zh';
+
+var LABELS = {
+  zh: {
+    pending: '待执行', ready: '可执行', blocked: '阻塞中',
+    in_progress: '执行中', completed: '已完成',
+    depsUnit: '个依赖', noDeps: '无依赖，可立即执行',
+    blockedDeps: '个依赖未完成',
+    notAssigned: '尚未指派',
+    layerPrefix: '第', layerSuffix: '层',
+    detailLayer: '所属层级', detailDesc: '任务描述',
+    detailDeps: '依赖任务', detailOutputs: '产出文件',
+    detailWorker: '指派 Worker', detailStatus: '当前状态',
+    connecting: '连接中...', online: '已连接', offline: '连接断开',
+    lastUpdate: '最后更新', loading: '正在加载任务数据...',
+    loadError: '无法加载任务数据', retry: '重试',
+    legend: '图例', clickTip: '点击节点查看详情 · 每 2s 自动刷新',
+    pageTitle: '任务依赖图',
+    errHint: '请通过 <code>http://localhost:8765/dag.html</code> 访问，勿用 file:// 打开',
+    statsTotal: '总计', statsCompleted: '已完成', statsInProgress: '进行中',
+    statsPending: '待执行', statsReady: '可执行', statsBlocked: '阻塞中'
+  },
+  en: {
+    pending: 'Pending', ready: 'Ready', blocked: 'Blocked',
+    in_progress: 'In Progress', completed: 'Completed',
+    depsUnit: 'deps', noDeps: 'No dependencies — ready',
+    blockedDeps: 'deps incomplete',
+    notAssigned: 'Not assigned',
+    layerPrefix: 'L', layerSuffix: '',
+    detailLayer: 'Layer', detailDesc: 'Description',
+    detailDeps: 'Dependencies', detailOutputs: 'Output Files',
+    detailWorker: 'Assigned Worker', detailStatus: 'Status',
+    connecting: 'Connecting...', online: 'Connected', offline: 'Disconnected',
+    lastUpdate: 'Last update', loading: 'Loading task data...',
+    loadError: 'Failed to load task data', retry: 'Retry',
+    legend: 'Legend', clickTip: 'Click node for details · Auto-refresh every 2s',
+    pageTitle: 'Task DAG',
+    errHint: 'Open via <code>http://localhost:8765/dag.html</code>, not file://',
+    statsTotal: 'Total', statsCompleted: 'Completed', statsInProgress: 'In Progress',
+    statsPending: 'Pending', statsReady: 'Ready', statsBlocked: 'Blocked'
+  }
+};
+
+var LANG = LABELS.zh;
+
+function switchLang(lang) {
+  currentLang = lang;
+  LANG = LABELS[lang] || LABELS.zh;
+  document.getElementById('btnZh').className = lang === 'zh' ? 'active' : '';
+  document.getElementById('btnEn').className = lang === 'en' ? 'active' : '';
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.title = (lang === 'zh' ? '知迹伴学' : 'InsightTutor') + ' · ' + LANG.pageTitle;
+  // 更新统计栏标签
+  document.getElementById('lblTotal').textContent = LANG.statsTotal;
+  document.getElementById('lblCompleted').textContent = LANG.statsCompleted;
+  document.getElementById('lblInProgress').textContent = LANG.statsInProgress;
+  document.getElementById('lblReady').textContent = LANG.statsReady;
+  document.getElementById('lblBlocked').textContent = LANG.statsBlocked;
+  if (window.__dagData) {
+    renderAll(window.__dagData);
+    updateStatsBar(window.__dagData);
+    updateLegend();
+  }
+}
+
+function updateLegend() {
+  document.getElementById('legendBox').innerHTML =
+    '<div style="font-weight:600;margin-bottom:6px;font-size:12px">' + LANG.legend + '</div>' +
+    '<div class="item"><span class="swatch blocked"></span> ' + LANG.blocked + '</div>' +
+    '<div class="item"><span class="swatch ready"></span> ' + LANG.ready + '</div>' +
+    '<div class="item"><span class="swatch in-progress"></span> ' + LANG.in_progress + '</div>' +
+    '<div class="item"><span class="swatch completed"></span> ' + LANG.completed + '</div>' +
+    '<div style="margin-top:4px;font-size:10px;color:var(--text-secondary)">' + LANG.clickTip + '</div>';
+}
+
+function updateStatsBar(data) {
+  var dag = data.dag || [];
+  var goal = data.goal || '';
+  document.getElementById('statsGoal').textContent = goal ? ('🎯 ' + goal) : ('🎯 ' + LANG.pageTitle);
+  var counts = { pending: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0 };
+  dag.forEach(function(t) {
+    if (t.status === 'pending') {
+      if (areDepsSatisfied(t, data)) counts.ready++;
+      else counts.blocked++;
+    } else if (counts.hasOwnProperty(t.status)) {
+      counts[t.status]++;
+    }
+  });
+  document.getElementById('statTotal').textContent = dag.length;
+  document.getElementById('statCompleted').textContent = counts.completed;
+  document.getElementById('statInProgress').textContent = counts.in_progress;
+  document.getElementById('statReady').textContent = counts.ready;
+  document.getElementById('statBlocked').textContent = counts.blocked;
+}
+
+function areDepsSatisfied(task, data) {
+  var deps = task.dependencies || [];
+  if (deps.length === 0) return true;
+  var completedSet = {};
+  (data.dag || []).forEach(function(t) { if (t.status === 'completed') completedSet[t.taskId] = true; });
+  return deps.every(function(depId) { return completedSet[depId]; });
+}
+
+function countBlockedDeps(task, data) {
+  var deps = task.dependencies || [];
+  if (deps.length === 0) return 0;
+  var completedSet = {};
+  (data.dag || []).forEach(function(t) { if (t.status === 'completed') completedSet[t.taskId] = true; });
+  var blocked = 0;
+  deps.forEach(function(depId) { if (!completedSet[depId]) blocked++; });
+  return blocked;
+}
+
+function fetchData() {
+  return fetch(DATA_URL, { cache: 'no-cache' }).then(function(r) { return r.json(); });
+}
+
+function fetchLang() {
+  return fetch('lang.json', { cache: 'no-cache' })
+    .then(function(r) { return r.json(); })
+    .then(function(cfg) {
+      if (cfg.language && LABELS[cfg.language]) {
+        switchLang(cfg.language);
+      }
+    }).catch(function() {});
+}
+
+var layerNames = {};
+
+function renderAll(data) {
+  var dag = data.dag || [];
+  var layers = data.architectureLayers || {};
+  var goal = data.goal || '';
+
+  var taskLayerMap = {};
+  var layerOrder = [];
+  Object.keys(layers).forEach(function(key) {
+    layerOrder.push(key);
+    (layers[key] || []).forEach(function(tid) { taskLayerMap[tid] = key; });
+  });
+
+  if (layerOrder.length === 0) {
+    layerOrder = ['default'];
+    dag.forEach(function(t) { taskLayerMap[t.taskId] = 'default'; });
+  }
+
+  layerNames = {};
+  layerOrder.forEach(function(key, idx) {
+    var parts = key.split('_');
+    var label = parts.length > 1 ? parts.slice(1).join(' ') : key;
+    if (currentLang === 'zh') {
+      label = translateLayerName(label);
+    }
+    layerNames[key] = label;
+  });
+
+  var html = '';
+  layerOrder.forEach(function(layerKey, layerIdx) {
+    var tasks = dag.filter(function(t) {
+      return (taskLayerMap[t.taskId] || 'default') === layerKey;
+    });
+    if (tasks.length === 0) return;
+
+    var layerNum = currentLang === 'zh' ? ('第' + (layerIdx + 1) + '层') : ('L' + layerIdx);
+    html += '<div class="layer" data-layer="' + layerKey + '">';
+    html += '<div class="layer-header"><span class="layer-label">' + layerNum + '</span>';
+    html += '<span class="layer-name">' + (layerNames[layerKey] || layerKey) + '</span></div>';
+    html += '<div class="nodes-row">';
+
+    tasks.forEach(function(t) {
+      var depsArr = t.dependencies || [];
+      var depCount = depsArr.length;
+      var blockedCount = t.status === 'pending' ? countBlockedDeps(t, data) : 0;
+      var allReady = t.status === 'pending' && blockedCount === 0;
+      var anyBlocked = t.status === 'pending' && blockedCount > 0;
+
+      // 确定 CSS 类
+      var cls = t.status;
+      if (anyBlocked) cls += ' blocked';
+      else if (allReady) cls += ' ready';
+
+      // 依赖文本
+      var depText;
+      if (t.status === 'pending' && anyBlocked) {
+        depText = blockedCount + ' ' + LANG.blockedDeps;
+      } else if (depCount === 0) {
+        depText = LANG.noDeps;
+      } else {
+        depText = depCount + ' ' + LANG.depsUnit;
+      }
+
+      // 状态标签文字
+      var statusLabel;
+      if (anyBlocked) statusLabel = LANG.blocked;
+      else if (allReady) statusLabel = LANG.ready;
+      else statusLabel = LANG[t.status];
+
+      var workerChip = t.assignedWorker ? '<span class="worker-chip">' + escapeHtml(t.assignedWorker) + '</span>' : '';
+
+      html += '<div class="node ' + cls + '" data-task-id="' + t.taskId + '" data-deps=\'' + JSON.stringify(depsArr) + '\' onclick="showDetail(\'' + t.taskId + '\')">';
+      html += '<div class="task-id">' + t.taskId + '</div>';
+      html += '<div class="task-title">' + escapeHtml(t.title) + '</div>';
+      html += '<div class="task-meta"><span>' + depText + '</span>';
+      html += '<span class="status-badge ' + (anyBlocked ? 'blocked' : allReady ? 'ready' : t.status) + '">' + statusLabel + '</span></div>';
+      html += workerChip;
+      html += '</div>';
+    });
+
+    html += '</div></div>';
+  });
+
+  document.getElementById('dagContainer').innerHTML =
+    '<svg class="arrow-svg" id="arrowSvg"><defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cbd5e1"/></marker></defs></svg>' + html;
+
+  setTimeout(drawArrows, 100);
+  window.__dagData = data;
+  window.__taskLayerMap = taskLayerMap;
+  window.__layerOrder = layerOrder;
+}
+
+function translateLayerName(name) {
+  var map = {
+    'Config': '配置层', 'Foundation': '基础层', 'Structure': '结构层',
+    'Features': '功能层', 'Integration': '集成层'
+  };
+  return map[name] || name;
+}
+
+function showDetail(taskId) {
+  var data = window.__dagData;
+  if (!data) return;
+  var task = null;
+  (data.dag || []).forEach(function(t) { if (t.taskId === taskId) task = t; });
+  if (!task) return;
+
+  document.querySelectorAll('.node.active').forEach(function(n) { n.classList.remove('active'); });
+  var nodeEl = document.querySelector('[data-task-id="' + taskId + '"]');
+  if (nodeEl) nodeEl.classList.add('active');
+
+  var depsArr = task.dependencies || [];
+  var depTags = '';
+  if (depsArr.length > 0) {
+    (data.dag || []).forEach(function(other) {
+      if (depsArr.indexOf(other.taskId) !== -1) {
+        depTags += '<span class="tag">' + other.taskId + '：' + escapeHtml(other.title) + '</span>';
+      }
+    });
+  } else {
+    depTags = '<span style="color:var(--text-secondary);font-size:13px">' + LANG.noDeps + '</span>';
+  }
+
+  var outputTags = (task.outputFiles || []).map(function(f) { return '<span class="tag">' + escapeHtml(f) + '</span>'; }).join('');
+
+  var layerKey = (window.__taskLayerMap || {})[taskId] || 'default';
+  var layerIdx = (window.__layerOrder || []).indexOf(layerKey);
+  var layerLabel = (currentLang === 'zh' ? '第' + (layerIdx + 1) + '层' : 'L' + layerIdx) + ' · ' + ((layerNames || {})[layerKey] || layerKey);
+
+  var statusLabel;
+  if (task.status === 'pending' && areDepsSatisfied(task, data)) statusLabel = LANG.ready;
+  else if (task.status === 'pending' && !areDepsSatisfied(task, data)) statusLabel = LANG.blocked;
+  else statusLabel = LANG[task.status] || task.status;
+
+  document.getElementById('detailPanel').innerHTML =
+    '<button class="close-btn" onclick="hideDetail()">✕</button>' +
+    '<div class="detail-id">' + task.taskId + '</div>' +
+    '<div class="detail-title">' + escapeHtml(task.title) + '</div>' +
+    '<div class="detail-section"><h4>' + LANG.detailStatus + '</h4><p>' + statusLabel + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailLayer + '</h4><p>' + layerLabel + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailDesc + '</h4><p>' + (task.description || '') + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailDeps + '（' + depsArr.length + '）</h4><div class="tag-list">' + depTags + '</div></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailOutputs + '</h4><div class="tag-list">' + outputTags + '</div></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailWorker + '</h4><p>' + (task.assignedWorker || LANG.notAssigned) + '</p></div>';
+
+  document.getElementById('detailOverlay').classList.add('show');
+}
+
+function hideDetail() {
+  document.querySelectorAll('.node.active').forEach(function(n) { n.classList.remove('active'); });
+  document.getElementById('detailOverlay').classList.remove('show');
+}
+
+function drawArrows() {
+  var svg = document.getElementById('arrowSvg');
+  var container = document.getElementById('dagContainer');
+  if (!svg || !container) return;
+  var containerRect = container.getBoundingClientRect();
+
+  svg.querySelectorAll('path').forEach(function(p) { p.remove(); });
+  svg.setAttribute('width', container.scrollWidth);
+  svg.setAttribute('height', container.scrollHeight);
+
+  document.querySelectorAll('.node').forEach(function(targetNode) {
+    var deps = JSON.parse(targetNode.dataset.deps || '[]');
+    deps.forEach(function(depId) {
+      var sourceNode = document.querySelector('[data-task-id="' + depId + '"]');
+      if (!sourceNode) return;
+      var sr = sourceNode.getBoundingClientRect();
+      var tr = targetNode.getBoundingClientRect();
+      var x1 = sr.left + sr.width / 2 - containerRect.left;
+      var y1 = sr.bottom - containerRect.top;
+      var x2 = tr.left + tr.width / 2 - containerRect.left;
+      var y2 = tr.top - containerRect.top;
+      var midY = (y1 + y2) / 2;
+      var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + midY + ', ' + x2 + ' ' + midY + ', ' + x2 + ' ' + y2);
+      svg.appendChild(path);
+    });
+  });
+}
+
+function setConnectionStatus(online) {
+  var dot = document.getElementById('connDot');
+  var text = document.getElementById('connText');
+  dot.className = 'conn-dot ' + (online ? 'online' : 'offline');
+  text.textContent = online ? LANG.online : LANG.offline;
+}
+
+function updateTimestamp() {
+  var now = new Date();
+  var ts = now.getHours().toString().padStart(2,'0') + ':' +
+           now.getMinutes().toString().padStart(2,'0') + ':' +
+           now.getSeconds().toString().padStart(2,'0');
+  document.getElementById('lastUpdate').textContent = LANG.lastUpdate + ': ' + ts;
+}
+
+function poll() {
+  fetchData().then(function(data) {
+    var currentJson = JSON.stringify(data);
+    if (currentJson !== lastJson) {
+      lastJson = currentJson;
+      renderAll(data);
+      updateStatsBar(data);
+    }
+    setConnectionStatus(true);
+    updateTimestamp();
+  }).catch(function(err) {
+    console.error('Poll error:', err);
+    setConnectionStatus(false);
+  });
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  fetchLang().then(function() {
+    updateLegend();
+    return fetchData();
+  }).then(function(data) {
+    lastJson = JSON.stringify(data);
+    renderAll(data);
+    updateStatsBar(data);
+    setConnectionStatus(true);
+    updateTimestamp();
+  }).catch(function(err) {
+    console.error('Init error:', err);
+    setConnectionStatus(false);
+    document.getElementById('dagContainer').innerHTML =
+      '<svg class="arrow-svg" id="arrowSvg"><defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cbd5e1"/></marker></defs></svg>' +
+      '<div class="error-state"><p>' + LANG.loadError + '</p><p style="font-size:12px;margin-top:8px">' + LANG.errHint + '</p>' +
+      '<button class="retry-btn" onclick="location.reload()">' + LANG.retry + '</button></div>';
+  });
+  setInterval(poll, POLL_INTERVAL);
+});
+
+var resizeTimer;
+window.addEventListener('resize', function() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(drawArrows, 200);
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') hideDetail();
+});
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+
+</body>
+</html>
