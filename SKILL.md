@@ -1,8 +1,8 @@
 ---
 name: agent-company
 description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company "your goal" to start, or /agent-company resume to continue.
-argument-hint: "[goal | init | reset | resume | status | lang zh/en]"
-description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company init for first-time setup, /agent-company reset to re-analyze, or /agent-company "your goal" to start.
+argument-hint: "[goal | init | reset | fresh | resume | status | lang zh/en]"
+description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company init for first-time setup, /agent-company reset to re-analyze, /agent-company fresh for architecture review, or /agent-company "your goal" to start.
 ---
 
 # /agent-company
@@ -14,7 +14,8 @@ Start a virtual dev team — a Leader Agent breaks down your goal into tasks via
 - `$ARGUMENTS` may contain:
   - A task goal (e.g. `"add login module"`) — **appends to existing DAG** (default when leader.json exists)
   - `init` — **first-time setup only** (`.mycompany/` must NOT exist). Analyzes codebase + docs, generates baseline leader.json. Refuses to run if `.mycompany/` already exists — use `reset` instead.
-  - `reset` — **re-analyze an existing project** from scratch. Backs up old `leader.json` → `leader.json.bak.{timestamp}`, then re-runs init analysis to generate a fresh baseline DAG. Safe: old state is preserved in the backup file + Git history.
+  - `reset` — **re-analyze an existing project** from scratch. Backs up old `leader.json` → `leader.json.bak.{timestamp}`, then re-runs init analysis to generate a fresh baseline DAG. Requires user confirmation.
+  - `fresh` — **architecture review & continuous improvement**. Leader reviews recent Worker activity (reports, git log, completed tasks), audits current architecture, and proposes optimization tasks appended to the DAG. Does NOT wipe anything. Requires user confirmation.
   - `new "task goal"` — starts a **fresh session**, replacing existing DAG
   - `resume` — restores the last session and continues unfinished tasks
   - `status` — shows current session progress without starting work
@@ -111,6 +112,82 @@ Reset re-analyzes the codebase from scratch (same analysis as init), but first *
 - Old `leader.json` is never deleted — only renamed
 - Git provides additional safety: `git log -- .mycompany/sessions/leader.json` shows full history
 - Backup file is in `.mycompany/sessions/` alongside the new `leader.json`
+
+### Fresh Mode (architecture review & continuous improvement)
+
+**Precondition:** `.mycompany/` MUST already exist with a `leader.json` containing completed tasks. If it doesn't, tell the user to use `init` first.
+
+`fresh` is the team's **retrospective** — Leader reviews what every Worker has been doing, audits the current architecture, and proposes concrete improvements. Nothing is wiped; new tasks are **appended** to the DAG.
+
+**What Fresh Does:**
+
+0. **Confirmation Gate (MANDATORY)**: Show current DAG stats and ask:
+   > 🔍 架构审视将分析近期 Worker 产出和 Git 历史，提出优化建议追加到 DAG。当前 DAG 共 X 个任务（Y 已完成）。是否继续？
+   
+   Wait for **confirm**. If denied, abort.
+1. **Collect Intelligence**:
+   - Read all Worker reports: `.mycompany/sessions/workers/*.json`
+   - Read recent git log: `git log --oneline -30` (who did what, when)
+   - Read current `leader.json` (full DAG + overlapAnalysis + designDecisions)
+   - Read module docs: `docs/modules/*.md` (check for staleness)
+   - Scan source tree for drift: do docs still match actual code?
+2. **Dispatch Leader for Architecture Audit**. Prompt:
+
+```
+## Task: Architecture Audit & Continuous Improvement
+
+### Context
+You are reviewing a project that has been developed by multiple Workers over time. Your job is to find what's getting messy and propose concrete improvements.
+
+### What to Analyze
+1. **Worker Activity Review**: Read .mycompany/sessions/workers/*.json — who did what? Were there repeated patterns of failure or rework?
+2. **Code-Doc Drift**: Compare docs/modules/*.md against actual source files. Are docs stale? Are there modules with no docs?
+3. **Git History Patterns**: Run git log --oneline -30. Which files change most often? Are there merge conflicts suggesting poor module boundaries?
+4. **Architecture Smells**: Check for:
+   - Circular dependencies between modules
+   - Files that grew too large (500+ lines) — candidates for splitting
+   - Duplicated logic across modules
+   - Modules with too many dependencies (fragile)
+   - Dead code or unused exports
+   - Feature flags that are always true (ready to remove)
+5. **Module Doc Freshness**: For each module doc in docs/modules/, check if the listed outputFiles still exist and whether the doc's description still matches the code.
+
+### Output: Append to leader.json
+Write your findings as NEW tasks appended to the DAG (do NOT modify existing tasks). Increment task IDs from the last used ID.
+
+Each finding becomes a task:
+- taskId: next available (e.g., "F1", "F2", ...)
+- title: short description of the improvement
+- description: what's wrong + what to change + why
+- acceptanceCriteria: 3-5 verifiable outcomes
+- dependencies: existing task IDs this depends on
+- status: "pending"
+- outputFiles: files that will be modified
+- tags: ["fresh"] (marks this as an architecture improvement task)
+
+### Task Categories (prefix taskId with letter):
+- **R** (Refactor): split large files, reduce coupling, simplify
+- **D** (Docs): update stale module docs, add missing docs
+- **C** (Cleanup): remove dead code, retire old feature flags, delete unused files
+- **P** (Performance): optimize slow paths, reduce bundle size
+
+### Constraints
+- Only propose tasks that are WORTH DOING. A 200-line file is not "too large."
+- Each task must be small enough for one Worker to complete.
+- Do NOT propose rewriting the entire codebase. Be surgical.
+- Max 8 tasks total. Prioritize by impact.
+- Write findings to leader.json (append to dag[], do NOT touch existing tasks).
+```
+
+3. **Review Leader's Output**: Read the updated leader.json, verify the new tasks make sense, remove any that feel low-value.
+4. Proceed to **Phase 1.5** (DAG visualization) — user sees the new optimization tasks in the DAG.
+5. User confirms → **Phase 2** (Worker execution) for the fresh tasks.
+
+**After Fresh Tasks Complete:**
+- Workers update module docs if changes were made
+- The project gets incrementally healthier without big-bang rewrites
+
+
 
 
 
@@ -239,6 +316,7 @@ If `userId` is not set, prompt the user to set it on first `/agent-company` run.
    - **If user invoked `/agent-company reset`**: refuse. Tell user `.mycompany/` doesn't exist — they should use `/agent-company init` instead.
 2. If `.mycompany/` already exists:
    - **If `reset`**: proceed to **Phase 0.6 — Reset Analysis** (see below). Back up old `leader.json` first.
+   - **If `fresh`**: proceed to **Phase 0.7 — Fresh Analysis** (see below). Review Worker history and propose improvements.
    - **If `init`**: refuse. Tell user `.mycompany/` already exists — they should use `/agent-company reset` instead.
    - **If `resume`**: load Leader state from `.mycompany/sessions/leader.json`, read language from `.mycompany/config.json`, and restore context.
    - **If `status`**: read session files and display current progress.
@@ -361,6 +439,47 @@ Tell the user: "旧 leader.json 已备份至 `.mycompany/sessions/leader.json.ba
 Execute the same steps as Phase 0.5 (Steps 0.5.1–0.5.5): read docs, scan src, dispatch Leader, verify, show DAG.
 
 The generated `leader.json` will have a fresh `sessionId` (e.g., `"reset-001"`) and `status: "baseline"`.
+
+### Phase 0.7 — Fresh Analysis (triggered by `/agent-company fresh`)
+
+When the user runs `/agent-company fresh`, review Worker activity and propose architecture improvements:
+
+**Step 0.7.0 — Confirmation Gate (MANDATORY)**
+
+Read current `leader.json`, compute DAG stats, and present:
+
+> 🔍 架构审视将回顾近期所有 Worker 的产出和 Git 历史，分析当前架构并提出优化建议（追加到 DAG，不删除已有任务）。当前 DAG 共 X 个任务（Y 已完成）。是否继续？
+
+Wait for **confirm**. Otherwise abort.
+
+**Step 0.7.1 — Collect Intelligence**
+
+Gather all available data for the Leader to analyze:
+- Read `.mycompany/sessions/workers/*.json` — all Worker completion reports
+- Run `git log --oneline -30` — recent commits, who did what
+- Read current `leader.json` — full DAG, overlapAnalysis, designDecisions
+- Read `docs/modules/*.md` — check for outdated docs
+- Cross-check: do `outputFiles` listed in module docs still exist?
+
+**Step 0.7.2 — Dispatch Leader for Architecture Audit**
+
+Dispatch a **Leader** agent with the Fresh Mode prompt template (see Fresh Mode section above). The Leader:
+1. Analyzes Worker reports for patterns (repeated failures, rework)
+2. Checks code-doc drift (stale docs, missing docs)
+3. Reviews git history for hot files (frequent changes = poor boundaries?)
+4. Identifies architecture smells (circular deps, large files, dead code)
+5. Proposes tasks as **appended** to `dag[]` (does NOT touch existing tasks)
+6. Task IDs use prefixes: R=Refactor, D=Docs, C=Cleanup, P=Performance
+7. Each task tagged with `"tags": ["fresh"]`
+
+**Step 0.7.3 — Review & Filter**
+
+After Leader writes updated `leader.json`:
+1. Read the new tasks — do they make sense? Are they worth doing?
+2. Remove or merge any that feel low-value or redundant
+3. Verify no existing tasks were modified
+4. Proceed to **Phase 1.5** (DAG visualization) — user sees optimization tasks alongside existing DAG
+5. User confirms → **Phase 2** (Worker execution) for the fresh tasks
 
 ---
 
