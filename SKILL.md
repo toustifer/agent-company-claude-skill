@@ -342,15 +342,19 @@ The `claimedAt` field allows the DAG HTML to show "claimed X min ago" and flag s
 
 ### Per-user identity
 
-Set in `.mycompany/config.json`:
+Stored in `.mycompany/identity.json` (gitignored — each person has their own, never committed):
 ```json
 {
-  "language": "zh",
-  "userId": "stifer"
+  "userId": "stifer",
+  "name": "小明"
 }
 ```
 
-If `userId` is not set, prompt the user to set it on first `/agent-company` run. This is the name that shows in `claimedBy` and `assignedWorker`.
+If `identity.json` doesn't exist or `userId` is not set, prompt the user to set it on first `/agent-company` run. This is the name that shows in `claimedBy` and `assignedWorker`.
+
+**`config.json` vs `identity.json`:**
+- `config.json` — shared settings (language), tracked in Git
+- `identity.json` — personal identity (userId, name), gitignored, never committed
 
 ---
 
@@ -358,13 +362,16 @@ If `userId` is not set, prompt the user to set it on first `/agent-company` run.
 
 1. Check if `.mycompany/` exists. If not:
    - Create `.mycompany/config.json` with `{ "language": "zh" }`
+   - Create `.mycompany/identity.json` (empty, then prompt user for name — see Per-user identity above)
    - Create `.mycompany/memory/project.md`
    - Create `.mycompany/memory/decisions.md`
    - Create `.mycompany/tasks/inbox.md` and `.mycompany/tasks/completed.md`
+   - **If `identity.json` has no `userId`**: prompt user: "你是谁？请输入你的名字（如 stifer、小明），这将用于任务标记。" Write to `identity.json`.
    - **If user invoked `/agent-company init`**: proceed to **Phase 0.5 — Init Analysis** (see below). DO NOT create an empty leader.json — init will generate the full baseline.
    - **If user provided a goal** (and `.mycompany/` didn't exist): create an empty `leader.json` skeleton, then proceed to Phase 1.
    - **If user invoked `/agent-company reset`**: refuse. Tell user `.mycompany/` doesn't exist — they should use `/agent-company init` instead.
 2. If `.mycompany/` already exists:
+   - **Always check** `.mycompany/identity.json` exists and has `userId`. If not, create + prompt as above.
    - **If `reset`**: proceed to **Phase 0.6 — Reset Analysis** (see below). Back up old `leader.json` first.
    - **If `fresh`**: proceed to **Phase 0.7 — Fresh Analysis** (see below). Review Worker history and propose improvements.
    - **If `init`**: refuse. Tell user `.mycompany/` already exists — they should use `/agent-company reset` instead.
@@ -762,7 +769,7 @@ Every Worker agent MUST receive a prompt with these sections:
 
 1. **`git pull`** — get latest leader.json (in case another user claimed tasks)
 2. For each ready task (status=pending AND all dependencies=completed, AND no unexpired claim):
-   - **FIRST**, claim the task: set `claimedBy` (from config userId), `claimedAt` (ISO timestamp), `status` to `in_progress`, `assignedWorker` to the worker ID
+   - **FIRST**, claim the task: set `claimedBy` (from `.mycompany/identity.json` userId), `claimedAt` (ISO timestamp), `status` to `in_progress`, `assignedWorker` to the worker ID
    - **THEN** `git commit + git push` the updated leader.json. If push fails, abandon this task and try another.
    - **Push success → lock acquired** → dispatch the **worker** agent using the prompt template above.
 3. Workers run independently with full file system tool access.

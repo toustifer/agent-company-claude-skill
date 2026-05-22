@@ -133,14 +133,14 @@ body {
 }
 .node:hover { box-shadow: var(--card-hover-shadow); transform: translateY(-1px); }
 
-/* 阻塞态：依赖未满足，虚线圈，偏淡 */
+/* 阻塞态 */
 .node.blocked { border-style: dashed; border-color: var(--blocked-border); opacity: 0.65; background: var(--blocked); }
 .node.blocked:hover { opacity: 0.85; }
 
-/* 就绪态：依赖全满足，橙色边框强调 */
+/* 就绪态 */
 .node.ready { border-color: var(--ready-border); background: var(--ready); }
 
-/* 执行中：蓝色 + 呼吸脉冲 */
+/* 执行中 */
 .node.in-progress {
   background: var(--in-progress); border-color: var(--in-progress-border);
   animation: pulse 2.2s ease-in-out infinite;
@@ -150,7 +150,7 @@ body {
   50% { box-shadow: 0 0 0 8px rgba(59,130,246,0.06); }
 }
 
-/* 已完成：绿色 + 右上角 ✓ */
+/* 已完成 */
 .node.completed { background: var(--completed); border-color: var(--completed-border); }
 .node.completed::after {
   content: '✓';
@@ -162,7 +162,6 @@ body {
   box-shadow: 0 2px 4px rgba(0,0,0,0.12);
 }
 
-/* 执行中节点加 spinner 小图标 */
 .node.in-progress .task-id::before {
   content: '◉ ';
   color: var(--in-progress-border);
@@ -179,6 +178,14 @@ body {
   background: #ede9fe; color: #7c3aed;
   padding: 2px 8px; border-radius: 999px; margin-top: 6px;
 }
+
+/* 认领人芯片 */
+.node .claimed-chip {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  background: #fef3c7; color: #92400e;
+  padding: 2px 8px; border-radius: 999px; margin-top: 4px; margin-left: 4px;
+}
+
 .node .task-id {
   font-size: 11px; font-weight: 700; color: var(--text-secondary);
   text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px;
@@ -277,11 +284,12 @@ var LABELS = {
     in_progress: '执行中', completed: '已完成',
     depsUnit: '个依赖', noDeps: '无依赖，可立即执行',
     blockedDeps: '个依赖未完成',
-    notAssigned: '尚未指派',
+    notAssigned: '尚未指派', claimedByNone: '无人认领',
     layerPrefix: '第', layerSuffix: '层',
     detailLayer: '所属层级', detailDesc: '任务描述',
     detailDeps: '依赖任务', detailOutputs: '产出文件',
-    detailWorker: '指派 Worker', detailStatus: '当前状态',
+    detailWorker: '指派 Worker', detailClaimedBy: '认领人', detailClaimedAt: '认领时间',
+    detailStatus: '当前状态',
     connecting: '连接中...', online: '已连接', offline: '连接断开',
     lastUpdate: '最后更新', loading: '正在加载任务数据...',
     loadError: '无法加载任务数据', retry: '重试',
@@ -296,11 +304,12 @@ var LABELS = {
     in_progress: 'In Progress', completed: 'Completed',
     depsUnit: 'deps', noDeps: 'No dependencies — ready',
     blockedDeps: 'deps incomplete',
-    notAssigned: 'Not assigned',
+    notAssigned: 'Not assigned', claimedByNone: 'Unclaimed',
     layerPrefix: 'L', layerSuffix: '',
     detailLayer: 'Layer', detailDesc: 'Description',
     detailDeps: 'Dependencies', detailOutputs: 'Output Files',
-    detailWorker: 'Assigned Worker', detailStatus: 'Status',
+    detailWorker: 'Assigned Worker', detailClaimedBy: 'Claimed By', detailClaimedAt: 'Claimed At',
+    detailStatus: 'Status',
     connecting: 'Connecting...', online: 'Connected', offline: 'Disconnected',
     lastUpdate: 'Last update', loading: 'Loading task data...',
     loadError: 'Failed to load task data', retry: 'Retry',
@@ -321,7 +330,6 @@ function switchLang(lang) {
   document.getElementById('btnEn').className = lang === 'en' ? 'active' : '';
   document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
   document.title = (lang === 'zh' ? '知迹伴学' : 'InsightTutor') + ' · ' + LANG.pageTitle;
-  // 更新统计栏标签
   document.getElementById('lblTotal').textContent = LANG.statsTotal;
   document.getElementById('lblCompleted').textContent = LANG.statsCompleted;
   document.getElementById('lblInProgress').textContent = LANG.statsInProgress;
@@ -445,12 +453,10 @@ function renderAll(data) {
       var allReady = t.status === 'pending' && blockedCount === 0;
       var anyBlocked = t.status === 'pending' && blockedCount > 0;
 
-      // 确定 CSS 类
       var cls = t.status;
       if (anyBlocked) cls += ' blocked';
       else if (allReady) cls += ' ready';
 
-      // 依赖文本
       var depText;
       if (t.status === 'pending' && anyBlocked) {
         depText = blockedCount + ' ' + LANG.blockedDeps;
@@ -460,7 +466,6 @@ function renderAll(data) {
         depText = depCount + ' ' + LANG.depsUnit;
       }
 
-      // 状态标签文字
       var statusLabel;
       if (anyBlocked) statusLabel = LANG.blocked;
       else if (allReady) statusLabel = LANG.ready;
@@ -468,12 +473,26 @@ function renderAll(data) {
 
       var workerChip = t.assignedWorker ? '<span class="worker-chip">' + escapeHtml(t.assignedWorker) + '</span>' : '';
 
+      // 认领人芯片
+      var claimedChip = '';
+      if (t.claimedBy) {
+        var claimedLabel = escapeHtml(t.claimedBy);
+        if (t.claimedAt) {
+          var claimedTime = t.claimedAt;
+          // 提取简短时间显示
+          var match = claimedTime.match(/T(\d{2}:\d{2})/);
+          if (match) claimedLabel += ' ' + match[1];
+        }
+        claimedChip = '<span class="claimed-chip">👤 ' + claimedLabel + '</span>';
+      }
+
       html += '<div class="node ' + cls + '" data-task-id="' + t.taskId + '" data-deps=\'' + JSON.stringify(depsArr) + '\' onclick="showDetail(\'' + t.taskId + '\')">';
       html += '<div class="task-id">' + t.taskId + '</div>';
       html += '<div class="task-title">' + escapeHtml(t.title) + '</div>';
       html += '<div class="task-meta"><span>' + depText + '</span>';
       html += '<span class="status-badge ' + (anyBlocked ? 'blocked' : allReady ? 'ready' : t.status) + '">' + statusLabel + '</span></div>';
       html += workerChip;
+      html += claimedChip;
       html += '</div>';
     });
 
@@ -531,6 +550,15 @@ function showDetail(taskId) {
   else if (task.status === 'pending' && !areDepsSatisfied(task, data)) statusLabel = LANG.blocked;
   else statusLabel = LANG[task.status] || task.status;
 
+  // 认领信息
+  var claimedByInfo = '';
+  if (task.claimedBy) {
+    claimedByInfo = '<div class="detail-section"><h4>' + LANG.detailClaimedBy + '</h4><p>' + escapeHtml(task.claimedBy) + '</p></div>';
+    if (task.claimedAt) {
+      claimedByInfo += '<div class="detail-section"><h4>' + LANG.detailClaimedAt + '</h4><p>' + escapeHtml(task.claimedAt) + '</p></div>';
+    }
+  }
+
   document.getElementById('detailPanel').innerHTML =
     '<button class="close-btn" onclick="hideDetail()">✕</button>' +
     '<div class="detail-id">' + task.taskId + '</div>' +
@@ -540,7 +568,8 @@ function showDetail(taskId) {
     '<div class="detail-section"><h4>' + LANG.detailDesc + '</h4><p>' + (task.description || '') + '</p></div>' +
     '<div class="detail-section"><h4>' + LANG.detailDeps + '（' + depsArr.length + '）</h4><div class="tag-list">' + depTags + '</div></div>' +
     '<div class="detail-section"><h4>' + LANG.detailOutputs + '</h4><div class="tag-list">' + outputTags + '</div></div>' +
-    '<div class="detail-section"><h4>' + LANG.detailWorker + '</h4><p>' + (task.assignedWorker || LANG.notAssigned) + '</p></div>';
+    '<div class="detail-section"><h4>' + LANG.detailWorker + '</h4><p>' + (task.assignedWorker || LANG.notAssigned) + '</p></div>' +
+    claimedByInfo;
 
   document.getElementById('detailOverlay').classList.add('show');
 }
