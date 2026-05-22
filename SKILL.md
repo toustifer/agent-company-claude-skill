@@ -1,7 +1,8 @@
 ---
 name: agent-company
 description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company "your goal" to start, or /agent-company resume to continue.
-argument-hint: "[goal | init | resume | status | lang zh/en]"
+argument-hint: "[goal | init | reset | resume | status | lang zh/en]"
+description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company init for first-time setup, /agent-company reset to re-analyze, or /agent-company "your goal" to start.
 ---
 
 # /agent-company
@@ -12,7 +13,8 @@ Start a virtual dev team — a Leader Agent breaks down your goal into tasks via
 
 - `$ARGUMENTS` may contain:
   - A task goal (e.g. `"add login module"`) — **appends to existing DAG** (default when leader.json exists)
-  - `init` — **analyzes existing codebase + docs**, generates leader.json with all discovered modules as completed tasks. No Worker execution. See Init Mode below.
+  - `init` — **first-time setup only** (`.mycompany/` must NOT exist). Analyzes codebase + docs, generates baseline leader.json. Refuses to run if `.mycompany/` already exists — use `reset` instead.
+  - `reset` — **re-analyze an existing project** from scratch. Backs up old `leader.json` → `leader.json.bak.{timestamp}`, then re-runs init analysis to generate a fresh baseline DAG. Safe: old state is preserved in the backup file + Git history.
   - `new "task goal"` — starts a **fresh session**, replacing existing DAG
   - `resume` — restores the last session and continues unfinished tasks
   - `status` — shows current session progress without starting work
@@ -24,9 +26,11 @@ When a leader.json already exists and user provides a new goal:
 - **Default (append)**: Leader reads the current DAG + existing module docs → analyzes the NEW goal → appends new tasks to the DAG → preserves existing task IDs and statuses → increments task numbering from the last used ID.
 - **`new` flag**: Wipes leader.json and starts fresh.
 
-### Init Mode
+### Init Mode (first-time only)
 
-When `.mycompany/` does NOT exist yet (or user explicitly runs `/agent-company init` on an existing project), this mode analyzes the entire existing codebase and generates a `leader.json` where every discovered business module becomes a **completed** task. This gives the AI a complete picture of what's already built before you issue your first work goal.
+**Precondition:** `.mycompany/` must NOT exist. If it already exists, refuse and tell the user to use `/agent-company reset` instead.
+
+This mode analyzes the entire existing codebase and generates a `leader.json` where every discovered business module becomes a **completed** task. This gives the AI a complete picture of what's already built before you issue your first work goal.
 
 **What Init Does:**
 
@@ -78,8 +82,31 @@ The Leader agent dispatched for `init` MUST produce a `leader.json` with:
 
 - Phase 0 bootstrap creates an **empty** `.mycompany/` and `leader.json` skeleton
 - Init mode fills `leader.json` with the **actual business modules** discovered in the codebase
-- Init mode is triggered when: (a) `.mycompany/` doesn't exist, OR (b) user explicitly says `/agent-company init`
+- Init mode ONLY runs when `.mycompany/` does NOT exist. If it exists, use `reset`.
 - After init, subsequent `/agent-company "new goal"` calls have full context for overlap analysis
+
+### Reset Mode (re-analyze existing project)
+
+**Precondition:** `.mycompany/` MUST already exist. If it doesn't, tell the user to use `/agent-company init` instead.
+
+Reset re-analyzes the codebase from scratch (same analysis as init), but first **backs up** the old `leader.json` to `leader.json.bak.{YYYYMMDD-HHmmss}`. The backup is a safety net — combined with Git history, no work is lost.
+
+**What Reset Does:**
+
+1. **Backup**: Rename `leader.json` → `leader.json.bak.{timestamp}` (e.g., `leader.json.bak.20260522-153000`)
+2. **Notify user**: "旧 leader.json 已备份至 leader.json.bak.20260522-153000"
+3. **Run Init Analysis** (same as Phase 0.5): scan docs, src, README, package.json → dispatch Leader → generate fresh baseline `leader.json`
+4. All discovered modules become `status: "completed"` tasks (same schema as init)
+5. Proceed to **Phase 1.5** (DAG visualization)
+6. **Skip Phase 2** — no Workers dispatched
+
+**Key Safety Guarantees:**
+
+- Old `leader.json` is never deleted — only renamed
+- Git provides additional safety: `git log -- .mycompany/sessions/leader.json` shows full history
+- Backup file is in `.mycompany/sessions/` alongside the new `leader.json`
+
+
 
 ---
 
@@ -198,16 +225,18 @@ If `userId` is not set, prompt the user to set it on first `/agent-company` run.
 
 1. Check if `.mycompany/` exists. If not:
    - Create `.mycompany/config.json` with `{ "language": "zh" }`
-   - Create `.mycompany/sessions/leader.json` (empty skeleton)
    - Create `.mycompany/memory/project.md`
    - Create `.mycompany/memory/decisions.md`
    - Create `.mycompany/tasks/inbox.md` and `.mycompany/tasks/completed.md`
-   - **If user invoked `/agent-company init`**: proceed to **Phase 0.5 — Init Analysis** (see below). DO NOT create an empty leader.json — init will generate the full one.
-   - **If user provided a goal** (and `.mycompany/` didn't exist): create the skeleton, then proceed to Phase 1.
-2. If `resume`, load Leader state from `.mycompany/sessions/leader.json`, read language from `.mycompany/config.json`, and restore context.
-3. If `status`, read session files and display current progress.
-4. If `lang <code>`, update `.mycompany/config.json` language field, regenerate `dag.html` if it exists, and confirm to user.
-5. If `init` (and `.mycompany/` already exists, e.g. re-init), confirm with user before overwriting `leader.json`.
+   - **If user invoked `/agent-company init`**: proceed to **Phase 0.5 — Init Analysis** (see below). DO NOT create an empty leader.json — init will generate the full baseline.
+   - **If user provided a goal** (and `.mycompany/` didn't exist): create an empty `leader.json` skeleton, then proceed to Phase 1.
+   - **If user invoked `/agent-company reset`**: refuse. Tell user `.mycompany/` doesn't exist — they should use `/agent-company init` instead.
+2. If `.mycompany/` already exists:
+   - **If `reset`**: proceed to **Phase 0.6 — Reset Analysis** (see below). Back up old `leader.json` first.
+   - **If `init`**: refuse. Tell user `.mycompany/` already exists — they should use `/agent-company reset` instead.
+   - **If `resume`**: load Leader state from `.mycompany/sessions/leader.json`, read language from `.mycompany/config.json`, and restore context.
+   - **If `status`**: read session files and display current progress.
+   - **If `lang <code>`**: update `.mycompany/config.json` language field, regenerate `dag.html` if it exists, and confirm to user.
 
 ### Phase 0.5 — Init Analysis (triggered by `/agent-company init`)
 
@@ -297,6 +326,29 @@ Do NOT enter Phase 2 (Worker Execution) — all tasks are `completed` baseline t
 
 After DAG is shown, tell the user:
 > 项目基线已生成，共发现 X 个业务模块。你可以在浏览器中查看完整的业务全景图。现在可以随时用 `/agent-company "你的需求"` 追加新任务，Leader 会自动分析哪些模块可以复用。
+
+### Phase 0.6 — Reset Analysis (triggered by `/agent-company reset`)
+
+When the user runs `/agent-company reset` on an existing project, back up the old state and re-analyze from scratch:
+
+**Step 0.6.1 — Backup**
+
+```bash
+# Generate timestamp
+timestamp=$(date +%Y%m%d-%H%M%S)
+# Backup old leader.json
+cp ".mycompany/sessions/leader.json" ".mycompany/sessions/leader.json.bak.${timestamp}"
+```
+
+Tell the user: "旧 leader.json 已备份至 `.mycompany/sessions/leader.json.bak.{timestamp}`。Git 历史中也可随时恢复。"
+
+**Step 0.6.2 — Run Init Analysis**
+
+Execute the same steps as Phase 0.5 (Steps 0.5.1–0.5.5): read docs, scan src, dispatch Leader, verify, show DAG.
+
+The generated `leader.json` will have a fresh `sessionId` (e.g., `"reset-001"`) and `status: "baseline"`.
+
+---
 
 ## Phase 1 — Leader Decomposition
 
