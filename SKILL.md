@@ -91,8 +91,14 @@ The Leader agent dispatched for `init` MUST produce a `leader.json` with:
 
 Reset re-analyzes the codebase from scratch (same analysis as init), but first **backs up** the old `leader.json` to `leader.json.bak.{YYYYMMDD-HHmmss}`. The backup is a safety net — combined with Git history, no work is lost.
 
+**Reset requires explicit user confirmation before proceeding.** This is a destructive operation (wipes current DAG), so the agent MUST pause and ask.
+
 **What Reset Does:**
 
+0. **Confirmation Gate (MANDATORY)**: Before doing anything, show the user current DAG stats (total tasks, completed/pending counts) and ask:
+   > ⚠️ 重置将清空当前 DAG（共 X 个任务，Y 个已完成）。旧 leader.json 会被备份。是否确认重置？
+   
+   Wait for user to reply **confirm** before proceeding. If denied, abort.
 1. **Backup**: Rename `leader.json` → `leader.json.bak.{timestamp}` (e.g., `leader.json.bak.20260522-153000`)
 2. **Notify user**: "旧 leader.json 已备份至 leader.json.bak.20260522-153000"
 3. **Run Init Analysis** (same as Phase 0.5): scan docs, src, README, package.json → dispatch Leader → generate fresh baseline `leader.json`
@@ -329,7 +335,15 @@ After DAG is shown, tell the user:
 
 ### Phase 0.6 — Reset Analysis (triggered by `/agent-company reset`)
 
-When the user runs `/agent-company reset` on an existing project, back up the old state and re-analyze from scratch:
+When the user runs `/agent-company reset` on an existing project, first confirm, then back up and re-analyze:
+
+**Step 0.6.0 — Confirmation Gate (MANDATORY)**
+
+Read current `leader.json`, compute DAG stats, and present to user:
+
+> ⚠️ 重置将清空当前 DAG（共 X 个任务，Y 个已完成，Z 个待执行）。旧 leader.json 会被备份至 leader.json.bak.{timestamp}，Git 历史中也可随时恢复。是否确认重置？
+
+Wait for user to reply **confirm**. If anything else, abort.
 
 **Step 0.6.1 — Backup**
 
