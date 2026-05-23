@@ -1,7 +1,7 @@
 ---
 name: agent-company
 description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company "your goal" to start, or /agent-company resume to continue.
-argument-hint: "[goal | init | reset | fresh | update | upgrade | resume | status | lang zh/en]"
+argument-hint: "[goal | init | reset | fresh | review | update | upgrade | resume | status | lang zh/en]"
 description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company init for first-time setup, /agent-company reset to re-analyze, /agent-company fresh for architecture review, or /agent-company "your goal" to start.
 ---
 
@@ -17,6 +17,7 @@ Start a virtual dev team — a Leader Agent breaks down your goal into tasks via
   - `reset` — **re-analyze an existing project** from scratch. Backs up old `leader.json` → `leader.json.bak.{timestamp}`, then re-runs init analysis to generate a fresh baseline DAG. Requires user confirmation.
   - `fresh` — **architecture review & continuous improvement**. Leader reviews recent Worker activity (reports, git log, completed tasks), audits current architecture, and proposes optimization tasks appended to the DAG. Does NOT wipe anything. Requires user confirmation.
   - `update` — **sync project with remote**. Runs `git pull` to get latest leader.json + code, then `git push` any local changes. Use before starting work to ensure you have the latest state.
+  - `review [taskId]` — **re-review a task or show review dashboard**. Without args: shows all idle tasks with their reusability status. With `T5`: re-checks acceptance criteria against actual code, re-assesses reusability, updates report.
   - `upgrade` — **update the skill itself**. Runs `git pull` in `~/.claude/skills/agent-company/` to fetch the latest SKILL.md, agents, and dag-template. Use when the team releases new skill features.
   - `new "task goal"` — starts a **fresh session**, replacing existing DAG
   - `resume` — restores the last session and continues unfinished tasks
@@ -380,6 +381,8 @@ If `identity.json` doesn't exist or `userId` is not set, prompt the user to set 
    - **If `resume`**: load Leader state from `.mycompany/sessions/leader.json`, read language from `.mycompany/config.json`, and restore context.
    - **If `status`**: read session files and display current progress.
    - **If `update`**: run `git pull` → report what changed (new commits, updated files) → if local leader.json has uncommitted changes, commit and `git push`. Show sync summary.
+   - **If `review`** (no taskId): show a dashboard of all idle tasks with their `reusable` status — which modules are still alive, which are marked for retirement.
+   - **If `review T5`** (with taskId): run the Phase 2.5 review protocol on that specific task — re-check acceptance criteria against current code, re-assess `reusable`, update the review report.
    - **If `upgrade`**: `cd ~/.claude/skills/agent-company && git pull` → show latest commits → remind user to restart Claude Code for changes to take effect.
    - **If `lang <code>`**: update `.mycompany/config.json` language field, regenerate `dag.html` if it exists, and confirm to user.
 
