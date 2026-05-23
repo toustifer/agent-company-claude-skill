@@ -20,9 +20,9 @@
   --in-progress: #dbeafe;
   --in-progress-border: #3b82f6;
   --in-progress-text: #1e40af;
-  --completed: #dcfce7;
-  --completed-border: #22c55e;
-  --completed-text: #166534;
+  --idle: #dcfce7;
+  --idle-border: #22c55e;
+  --idle-text: #166534;
   --layer-bg: #f8fafc;
   --arrow: #cbd5e1;
   --bg: #ffffff;
@@ -47,9 +47,9 @@
   --in-progress: #172554;
   --in-progress-border: #3b82f6;
   --in-progress-text: #93c5fd;
-  --completed: #052e16;
-  --completed-border: #22c55e;
-  --completed-text: #86efac;
+  --idle: #052e16;
+  --idle-border: #22c55e;
+  --idle-text: #86efac;
   --layer-bg: #1e293b;
   --arrow: #475569;
   --bg: #1e293b;
@@ -97,7 +97,7 @@ body {
 .stat-dot.ready { background: var(--ready-border); }
 .stat-dot.blocked { background: var(--blocked-border); }
 .stat-dot.in-progress { background: var(--in-progress-border); }
-.stat-dot.completed { background: var(--completed-border); }
+.stat-dot.idle { background: var(--idle-border); }
 
 .conn-status { display: flex; align-items: center; gap: 6px; font-size: 11px; }
 .conn-dot { width: 8px; height: 8px; border-radius: 50%; }
@@ -124,7 +124,7 @@ body {
 .swatch.ready { background: var(--ready); border-color: var(--ready-border); }
 .swatch.blocked { background: var(--blocked); border-color: var(--blocked-border); }
 .swatch.in-progress { background: var(--in-progress); border-color: var(--in-progress-border); }
-.swatch.completed { background: var(--completed); border-color: var(--completed-border); }
+.swatch.idle { background: var(--idle); border-color: var(--idle-border); }
 
 .dag-container {
   position: relative; background: var(--bg);
@@ -188,12 +188,12 @@ body {
 }
 
 /* 已完成 */
-.node.completed { background: var(--completed); border-color: var(--completed-border); }
-.node.completed::after {
+.node.idle { background: var(--idle); border-color: var(--idle-border); }
+.node.idle::after {
   content: '✓';
   position: absolute; top: -8px; right: -8px;
   width: 22px; height: 22px;
-  background: var(--completed-border); color: #fff;
+  background: var(--idle-border); color: #fff;
   border-radius: 50%; font-size: 12px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 2px 4px rgba(0,0,0,0.12);
@@ -234,7 +234,7 @@ body {
 .status-badge.ready { background: var(--ready); color: var(--ready-text); }
 .status-badge.blocked { background: var(--blocked); color: var(--blocked-text); }
 .status-badge.in-progress { background: var(--in-progress); color: var(--in-progress-text); }
-.status-badge.completed { background: var(--completed); color: var(--completed-text); }
+.status-badge.idle { background: var(--idle); color: var(--idle-text); }
 
 .detail-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -292,7 +292,7 @@ body {
     <button id="btnTheme" onclick="toggleTheme()" title="切换夜间模式">🌙</button>
   </span>
   <span class="stat-item"><span id="lblTotal">总计</span>：<strong id="statTotal">-</strong></span>
-  <span class="stat-item"><span class="stat-dot completed"></span> <span id="lblCompleted">已完成</span>：<strong id="statCompleted">-</strong></span>
+  <span class="stat-item"><span class="stat-dot idle"></span> <span id="lblCompleted">已完成</span>：<strong id="statCompleted">-</strong></span>
   <span class="stat-item"><span class="stat-dot in-progress"></span> <span id="lblInProgress">进行中</span>：<strong id="statInProgress">-</strong></span>
   <span class="stat-item"><span class="stat-dot ready"></span> <span id="lblReady">可执行</span>：<strong id="statReady">-</strong></span>
   <span class="stat-item"><span class="stat-dot blocked"></span> <span id="lblBlocked">阻塞中</span>：<strong id="statBlocked">-</strong></span>
@@ -321,7 +321,7 @@ var currentLang = 'zh';
 var LABELS = {
   zh: {
     pending: '待执行', ready: '可执行', blocked: '阻塞中',
-    in_progress: '执行中', completed: '已完成',
+    in_progress: '执行中', idle: '已完成',
     depsUnit: '个依赖', noDeps: '无依赖，可立即执行',
     blockedDeps: '个依赖未完成',
     notAssigned: '尚未指派', claimedByNone: '无人认领',
@@ -341,7 +341,7 @@ var LABELS = {
   },
   en: {
     pending: 'Pending', ready: 'Ready', blocked: 'Blocked',
-    in_progress: 'In Progress', completed: 'Completed',
+    in_progress: 'In Progress', idle: 'Completed',
     depsUnit: 'deps', noDeps: 'No dependencies — ready',
     blockedDeps: 'deps incomplete',
     notAssigned: 'Not assigned', claimedByNone: 'Unclaimed',
@@ -413,7 +413,7 @@ function updateLegend() {
     '<div class="item"><span class="swatch blocked"></span> ' + LANG.blocked + '</div>' +
     '<div class="item"><span class="swatch ready"></span> ' + LANG.ready + '</div>' +
     '<div class="item"><span class="swatch in-progress"></span> ' + LANG.in_progress + '</div>' +
-    '<div class="item"><span class="swatch completed"></span> ' + LANG.completed + '</div>' +
+    '<div class="item"><span class="swatch idle"></span> ' + LANG.idle + '</div>' +
     '<div style="margin-top:4px;font-size:10px;color:var(--text-secondary)">' + LANG.clickTip + '</div>';
 }
 
@@ -421,7 +421,7 @@ function updateStatsBar(data) {
   var dag = data.dag || [];
   var goal = data.goal || '';
   document.getElementById('statsGoal').textContent = goal ? ('🎯 ' + goal) : ('🎯 ' + LANG.pageTitle);
-  var counts = { pending: 0, ready: 0, blocked: 0, in_progress: 0, completed: 0 };
+  var counts = { pending: 0, ready: 0, blocked: 0, in_progress: 0, idle: 0 };
   dag.forEach(function(t) {
     if (t.status === 'pending') {
       if (areDepsSatisfied(t, data)) counts.ready++;
@@ -431,7 +431,7 @@ function updateStatsBar(data) {
     }
   });
   document.getElementById('statTotal').textContent = dag.length;
-  document.getElementById('statCompleted').textContent = counts.completed;
+  document.getElementById('statCompleted').textContent = counts.idle;
   document.getElementById('statInProgress').textContent = counts.in_progress;
   document.getElementById('statReady').textContent = counts.ready;
   document.getElementById('statBlocked').textContent = counts.blocked;
@@ -440,18 +440,18 @@ function updateStatsBar(data) {
 function areDepsSatisfied(task, data) {
   var deps = task.dependencies || [];
   if (deps.length === 0) return true;
-  var completedSet = {};
-  (data.dag || []).forEach(function(t) { if (t.status === 'completed') completedSet[t.taskId] = true; });
-  return deps.every(function(depId) { return completedSet[depId]; });
+  var idleSet = {};
+  (data.dag || []).forEach(function(t) { if (t.status === 'idle') idleSet[t.taskId] = true; });
+  return deps.every(function(depId) { return idleSet[depId]; });
 }
 
 function countBlockedDeps(task, data) {
   var deps = task.dependencies || [];
   if (deps.length === 0) return 0;
-  var completedSet = {};
-  (data.dag || []).forEach(function(t) { if (t.status === 'completed') completedSet[t.taskId] = true; });
+  var idleSet = {};
+  (data.dag || []).forEach(function(t) { if (t.status === 'idle') idleSet[t.taskId] = true; });
   var blocked = 0;
-  deps.forEach(function(depId) { if (!completedSet[depId]) blocked++; });
+  deps.forEach(function(depId) { if (!idleSet[depId]) blocked++; });
   return blocked;
 }
 

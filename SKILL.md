@@ -266,10 +266,10 @@ Language is stored in `.mycompany/config.json`:
 |---------|----|----|
 | Status: pending | 待执行 | Pending |
 | Status: in_progress | 执行中 | In Progress |
-| Status: completed | 已完成 | Completed |
+| Status: idle | 已空闲 | Idle |
 | Layer label | 第X层 | LX |
 | Stats: total | 总计 | Total |
-| Stats: completed | 已完成 | Completed |
+| Stats: idle | 已空闲 | Idle |
 | Stats: in_progress | 进行中 | In Progress |
 | Stats: pending | 待执行 | Pending |
 | Detail: description | 任务描述 | Description |
@@ -772,7 +772,7 @@ Every Worker agent MUST receive a prompt with these sections:
 ### Dispatch Rules
 
 1. **`git pull`** — get latest leader.json (in case another user claimed tasks)
-2. For each ready task (status=pending AND all dependencies=completed, AND no unexpired claim):
+2. For each ready task (status=pending AND all dependencies=idle, AND no unexpired claim):
    - **FIRST**, claim the task: set `claimedBy` (from `.mycompany/identity.json` userId), `claimedAt` (ISO timestamp), `status` to `in_progress`, `assignedWorker` to the worker ID
    - **THEN** `git commit + git push` the updated leader.json. If push fails, abandon this task and try another.
    - **Push success → lock acquired** → dispatch the **worker** agent using the prompt template above.
@@ -787,8 +787,12 @@ After each Worker finishes, the Reviewer (the agent running /agent-company) MUST
 
 1. **Check each acceptance criterion** one by one against the actual file changes
 2. **Read the changed files** — do not trust the Worker's summary alone
-3. **Mark the task `completed`** in leader.json ONLY if ALL acceptance criteria pass
-4. **If any criterion fails**: mark task `pending` again, add feedback to leader.json, and re-dispatch the Worker with the feedback
+3. **Assess reusability** — will this module be reused in future work?
+   - YES → mark task `status: "idle"`, set `reusable: true`. Module doc stays, Worker stays in pool.
+   - NO → mark task `status: "idle"`, set `reusable: false`. Module doc archived, Worker candidate for retirement in next `fresh`.
+   - Record assessment in the review report with reasoning.
+4. **Mark the task `idle`** in leader.json ONLY if ALL acceptance criteria pass
+5. **If any criterion fails**: mark task `pending` again, add feedback to leader.json, and re-dispatch the Worker with the feedback
 
 **Review Report Format** (write to `.mycompany/tasks/completed.md`):
 ```markdown
@@ -799,15 +803,16 @@ After each Worker finishes, the Reviewer (the agent running /agent-company) MUST
   1. [PASS/FAIL] {criterion}
   2. [PASS/FAIL] {criterion}
   ...
+- Reusable: YES / NO — {reasoning}
 - Notes: ...
 ```
 
-**After T1 (Config) is completed**: T2 and T4 become unblocked. Show the user updated DAG stats and ask which tasks to prioritize next.
+**After T1 (Config) is idle**: T2 and T4 become unblocked. Show the user updated DAG stats and ask which tasks to prioritize next.
 
 ---
 
 ## Phase 3 — Aggregation
 
-1. Leader reviews all completed tasks and their review reports.
+1. Leader reviews all idle tasks and their review reports.
 2. Leader produces a final summary and writes to `.mycompany/tasks/completed.md`.
-3. Display summary to user. The DAG page auto-shows all task statuses.
+3. Display summary to user, including reusable/idle module counts. The DAG page auto-shows all task statuses.
