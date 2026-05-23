@@ -1,7 +1,7 @@
 ---
 name: agent-company
 description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company "your goal" to start, or /agent-company resume to continue.
-argument-hint: "[goal | init | reset | fresh | resume | status | lang zh/en]"
+argument-hint: "[goal | init | reset | fresh | update | resume | status | lang zh/en]"
 description: Start a multi-Agent team to work on your project. Leader breaks down tasks, Workers execute in parallel. Use /agent-company init for first-time setup, /agent-company reset to re-analyze, /agent-company fresh for architecture review, or /agent-company "your goal" to start.
 ---
 
@@ -16,6 +16,7 @@ Start a virtual dev team — a Leader Agent breaks down your goal into tasks via
   - `init` — **first-time setup only** (`.mycompany/` must NOT exist). Analyzes codebase + docs, generates baseline leader.json. Refuses to run if `.mycompany/` already exists — use `reset` instead.
   - `reset` — **re-analyze an existing project** from scratch. Backs up old `leader.json` → `leader.json.bak.{timestamp}`, then re-runs init analysis to generate a fresh baseline DAG. Requires user confirmation.
   - `fresh` — **architecture review & continuous improvement**. Leader reviews recent Worker activity (reports, git log, completed tasks), audits current architecture, and proposes optimization tasks appended to the DAG. Does NOT wipe anything. Requires user confirmation.
+  - `update` — **sync with remote**. Runs `git pull` to get latest leader.json + code, then `git push` any local changes. Use before starting work to ensure you have the latest state.
   - `new "task goal"` — starts a **fresh session**, replacing existing DAG
   - `resume` — restores the last session and continues unfinished tasks
   - `status` — shows current session progress without starting work
@@ -377,6 +378,7 @@ If `identity.json` doesn't exist or `userId` is not set, prompt the user to set 
    - **If `init`**: refuse. Tell user `.mycompany/` already exists — they should use `/agent-company reset` instead.
    - **If `resume`**: load Leader state from `.mycompany/sessions/leader.json`, read language from `.mycompany/config.json`, and restore context.
    - **If `status`**: read session files and display current progress.
+   - **If `update`**: run `git pull` → report what changed (new commits, updated files) → if local leader.json has uncommitted changes, commit and `git push`. Show sync summary.
    - **If `lang <code>`**: update `.mycompany/config.json` language field, regenerate `dag.html` if it exists, and confirm to user.
 
 ### Phase 0.5 — Init Analysis (triggered by `/agent-company init`)
