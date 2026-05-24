@@ -689,18 +689,34 @@ Your previous work: {worker.history summary}
   Include a `historyEntry` field for archiving to Worker history
 ```
 
-### Dispatch Rules
+### Dispatch Rules (Git Sync Cycle)
+
+The entire Phase 2 is a **loop**: pull → claim → commit+push (lock) → dispatch → review → commit+push (save) → repeat.
+
+```
+┌─ git pull ──────────────────────┐
+│  Find ready tasks                │
+│  Claim them (update leader.json) │
+│  git commit + git push  ← LOCK  │
+│  ┌──────────────────────────┐    │
+│  │ Dispatch Worker (Agent)  │    │
+│  │ Worker completes         │    │
+│  │ Phase 2.5 review         │    │
+│  └──────────────────────────┘    │
+│  PASS → archive task             │
+│  Update leader.json              │
+│  git commit + git push  ← SAVE  │
+└──────────────────────────────────┘
+```
 
 1. **`git pull`** — get latest leader.json
 2. For each ready task (status=pending, deps satisfied, no unexpired claim):
    - **Claim the task**: set `claimedBy`, `claimedAt`, task `status: "in_progress"`
    - **Set Worker busy**: set `workers[].status: "busy"`, `workers[].currentTask: taskId`
-   - **`git commit + git push`** — lock acquisition
-   - If push fails, abandon and try another task
+   - **`git commit + git push`** — lock acquisition (if push fails, abandon and try another task)
    - **Dispatch** the worker agent
 3. Dispatch up to **3 Workers in parallel**. Queue remaining.
-4. After Worker completes, read its report
-5. Proceed to Phase 2.5 review
+4. After Worker completes, read its report → proceed to Phase 2.5
 
 ### Phase 2.5 — Review Gate (MANDATORY)
 
@@ -708,7 +724,12 @@ After each Worker finishes, the Reviewer MUST:
 
 1. **Check each acceptance criterion** against actual file changes
 2. **Read the changed files** — do not trust the Worker's summary alone
-3. **ALL pass** → Remove task from `dag[]`, append `historyEntry` to Worker's `history[]`, set Worker `status: "idle"`, `currentTask: null`
+3. **ALL pass** →
+   - Remove task from `dag[]`, append `historyEntry` to Worker's `history[]`
+   - Set Worker `status: "idle"`, `currentTask: null`
+   - Write review report to `.mycompany/tasks/completed.md`
+   - **`git commit + git push`** — persist review result
+   - Loop back to Phase 2 for next batch
 4. **Any FAIL** → Keep task in DAG with `status: "pending"`, add `_reviewNotes` with feedback, set Worker `status: "idle"`, `currentTask: null`, re-dispatch Worker
 
 **No reusability assessment.** Workers are persistent domain agents — they don't get deleted after tasks.
