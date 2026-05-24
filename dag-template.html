@@ -501,7 +501,7 @@ function renderWorkers(data) {
     if (w.status === 'busy' && w.currentTask) {
       currentTaskText = '<span class="worker-current-task">' + LANG.workerCurrentTask + ': ' + escapeHtml(w.currentTask) + '</span>';
     }
-    html += '<div class="worker-card ' + cls + '" onclick="showWorkerDetail('' + escapeHtml(w.id) + '')">';
+    html += '<div class="worker-card ' + cls + '" onclick="showWorkerDetail(\'' + escapeHtml(w.id) + '\')">';
     html += '<div class="worker-id">' + escapeHtml(w.id) + '</div>';
     html += '<div class="worker-name">' + escapeHtml(w.title || w.id) + ' <span class="worker-badge ' + cls + '">' + badge + '</span></div>';
     html += '<div class="worker-scope">' + escapeHtml(scope) + '</div>';
@@ -510,7 +510,7 @@ function renderWorkers(data) {
     if (historyText) html += '<span class="worker-history-count">' + historyText + '</span>';
     html += currentTaskText;
     html += '</div></div>';
-  }); }
+  });
   grid.innerHTML = html;
 }
 
