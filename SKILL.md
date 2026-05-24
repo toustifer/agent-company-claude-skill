@@ -22,8 +22,56 @@ Each Worker:
 - Is **never deleted** — only merged or split
 - Accumulates a `history[]` of completed tasks
 - Is `idle` (available) or `busy` (executing a task)
+- The DAG (`dag[]`) only contains **pending** and **in_progress** tasks. Completed tasks are removed from DAG and appended to the Worker's `history[]`.
 
-The DAG (`dag[]`) only contains **pending** and **in_progress** tasks. Completed tasks are removed from DAG and appended to the Worker's `history[]`.
+## Standard Worker Types
+
+### Domain Workers (`domain: true`)
+Represent actual business domains. Created by `init` or `fresh` when new business logic emerges.
+
+```json
+{
+  "id": "worker-order",
+  "title": "订单服务",
+  "scope": "订单 CRUD、状态机、生命周期动作",
+  "domain": true,
+  "files": ["services/order.js", "pages/order/"],
+  "status": "idle",
+  "currentTask": null,
+  "history": []
+}
+```
+
+### Infrastructure Workers (`domain: false`)
+Cross-cutting concerns shared across domains. Standardized templates:
+
+| Worker ID | Title | When to Create |
+|-----------|-------|---------------|
+| `worker-guard` | 路由守卫 & 流程编排 | 项目有路由控制和多步骤流程时 |
+| `worker-infra` | 基础设施 | 项目有 utils/api/storage 层时 |
+| `worker-config` | 配置与文档 | 项目有全局配置和文档时 |
+| `worker-components` | 公共组件 | 项目有复用组件时 |
+| `worker-ops` | 部署与运维 | 项目有后端代码或部署需求时 |
+
+**worker-ops 标准定义：**
+```json
+{
+  "id": "worker-ops",
+  "title": "部署与运维",
+  "scope": "后端服务部署、CI/CD 流水线、服务器监控、Docker 容器化、域名与 SSL 管理、环境配置",
+  "domain": false,
+  "files": [],
+  "status": "idle",
+  "currentTask": null,
+  "history": []
+}
+```
+`files` 初始为空，当引入 Dockerfile、CI 配置、部署脚本等文件后自动补充。
+
+### Page Workers (`domain: false`)
+One per major page. Thin wrappers that own page-level files.
+
+---
 
 ## Options
 
