@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>知迹伴学 · 任务依赖图</title>
+<title>知迹伴学 · DAG 总览</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -236,6 +236,39 @@ body {
 .status-badge.in-progress { background: var(--in-progress); color: var(--in-progress-text); }
 .status-badge.idle { background: var(--idle); color: var(--idle-text); }
 
+
+/* Worker 卡片 */
+.workers-section { padding: 0 0 20px 0; }
+.workers-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 0 24px; }
+.workers-title { font-size: 15px; font-weight: 700; }
+.workers-count { font-size: 12px; color: var(--text-secondary); margin-left: auto; }
+.workers-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 24px; }
+.worker-card {
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 14px 16px; min-width: 200px; max-width: 280px;
+  flex: 1 1 200px; cursor: pointer; transition: all 0.15s ease;
+  box-shadow: var(--card-shadow); user-select: none;
+}
+.worker-card:hover { box-shadow: var(--card-hover-shadow); transform: translateY(-1px); }
+.worker-card.domain { border-left: 3px solid #6366f1; }
+.worker-card.infra { border-left: 3px solid #94a3b8; }
+.worker-card .worker-id { font-size: 10px; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
+.worker-card .worker-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.worker-card .worker-scope { font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px; }
+.worker-card .worker-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.worker-status { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.worker-status.idle { background: #dcfce7; color: #166534; }
+.worker-status.busy { background: #dbeafe; color: #1e40af; }
+.worker-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+.worker-badge.domain { background: #ede9fe; color: #7c3aed; }
+.worker-badge.infra { background: #f1f5f9; color: #64748b; }
+.worker-history-count { font-size: 11px; color: var(--text-secondary); }
+.worker-current-task { font-size: 11px; color: var(--in-progress-text); background: var(--in-progress); padding: 2px 8px; border-radius: 999px; }
+
+.section-divider { height: 1px; background: var(--border); margin: 0 24px 20px 24px; }
+
+.no-tasks { text-align: center; padding: 40px 24px; color: var(--text-secondary); font-size: 14px; }
+
 .detail-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(15,23,42,0.2); z-index: 200;
@@ -296,15 +329,28 @@ body {
   <span class="stat-item"><span class="stat-dot in-progress"></span> <span id="lblInProgress">进行中</span>：<strong id="statInProgress">-</strong></span>
   <span class="stat-item"><span class="stat-dot ready"></span> <span id="lblReady">可执行</span>：<strong id="statReady">-</strong></span>
   <span class="stat-item"><span class="stat-dot blocked"></span> <span id="lblBlocked">阻塞中</span>：<strong id="statBlocked">-</strong></span>
+  <span style="width:1px;height:20px;background:var(--border);margin:0 4px"></span>
+  <span class="stat-item"><span class="stat-dot idle"></span> <span id="lblWorkers">Workers</span>：<strong id="statWorkers">-</strong></span>
+  <span class="stat-item"><span class="stat-dot in-progress"></span> <span id="lblBusy">执行中</span>：<strong id="statBusy">-</strong></span>
 </div>
 
 <div class="legend" id="legendBox"></div>
+
+
+<div class="workers-section" id="workersSection">
+  <div class="workers-header">
+    <span class="workers-title" id="lblWorkersTitle">👥 业务域 Worker</span>
+    <span class="workers-count" id="workersCount"></span>
+  </div>
+  <div class="workers-grid" id="workersGrid"></div>
+  <div class="section-divider"></div>
+</div>
 
 <div class="dag-container" id="dagContainer">
   <svg class="arrow-svg" id="arrowSvg"><defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cbd5e1"/></marker></defs></svg>
   <div class="loading-state" id="loadingState">
     <div class="loading-spinner"></div>
-    <p>正在加载任务数据...</p>
+    <p>正在加载数据...</p>
   </div>
 </div>
 
@@ -337,6 +383,10 @@ var LABELS = {
     pageTitle: '任务依赖图',
     errHint: '请通过 <code>http://localhost:8765/dag.html</code> 访问，勿用 file:// 打开',
     statsTotal: '总计', statsCompleted: '已完成', statsInProgress: '进行中',
+    
+    workersTitle: '👥 业务域 Worker', workersCount: '个 Worker',
+    workerIdle: '空闲', workerBusy: '执行中', workerDomain: '域', workerInfra: '基础设施',
+    workerHistory: '已完成任务', workerCurrentTask: '当前任务', noTasks: '暂无待办任务',
     statsPending: '待执行', statsReady: '可执行', statsBlocked: '阻塞中'
   },
   en: {
@@ -357,6 +407,10 @@ var LABELS = {
     pageTitle: 'Task DAG',
     errHint: 'Open via <code>http://localhost:8765/dag.html</code>, not file://',
     statsTotal: 'Total', statsCompleted: 'Completed', statsInProgress: 'In Progress',
+    
+    workersTitle: '👥 Domain Workers', workersCount: 'workers',
+    workerIdle: 'Idle', workerBusy: 'Busy', workerDomain: 'Domain', workerInfra: 'Infra',
+    workerHistory: 'History', workerCurrentTask: 'Current Task', noTasks: 'No pending tasks',
     statsPending: 'Pending', statsReady: 'Ready', statsBlocked: 'Blocked'
   }
 };
@@ -400,8 +454,10 @@ function switchLang(lang) {
   document.getElementById('lblInProgress').textContent = LANG.statsInProgress;
   document.getElementById('lblReady').textContent = LANG.statsReady;
   document.getElementById('lblBlocked').textContent = LANG.statsBlocked;
+  document.getElementById('lblWorkersTitle').textContent = LANG.workersTitle;
   if (window.__dagData) {
     renderAll(window.__dagData);
+    renderWorkers(window.__dagData);
     updateStatsBar(window.__dagData);
     updateLegend();
   }
@@ -417,7 +473,49 @@ function updateLegend() {
     '<div style="margin-top:4px;font-size:10px;color:var(--text-secondary)">' + LANG.clickTip + '</div>';
 }
 
+
+function renderWorkers(data) {
+  var workers = data.workers || [];
+  var grid = document.getElementById('workersGrid');
+  if (!grid) return;
+  if (workers.length === 0) {
+    document.getElementById('workersSection').style.display = 'none';
+    return;
+  }
+  document.getElementById('workersSection').style.display = '';
+  
+  var idle = 0, busy = 0;
+  workers.forEach(function(w) { if (w.status === 'busy') busy++; else idle++; });
+  document.getElementById('workersCount').textContent = workers.length + ' ' + LANG.workersCount + '（' + LANG.workerIdle + ': ' + idle + ' / ' + LANG.workerBusy + ': ' + busy + '）';
+  
+  var html = '';
+  workers.forEach(function(w) {
+    var cls = w.domain ? 'domain' : 'infra';
+    var badge = w.domain ? LANG.workerDomain : LANG.workerInfra;
+    var statusCls = w.status === 'busy' ? 'busy' : 'idle';
+    var statusLabel = w.status === 'busy' ? LANG.workerBusy : LANG.workerIdle;
+    var scope = w.scope || '';
+    var historyCount = (w.history || []).length;
+    var historyText = historyCount > 0 ? historyCount + ' ' + LANG.workerHistory : '';
+    var currentTaskText = '';
+    if (w.status === 'busy' && w.currentTask) {
+      currentTaskText = '<span class="worker-current-task">' + LANG.workerCurrentTask + ': ' + escapeHtml(w.currentTask) + '</span>';
+    }
+    html += '<div class="worker-card ' + cls + '" onclick="showWorkerDetail('' + escapeHtml(w.id) + '')">';
+    html += '<div class="worker-id">' + escapeHtml(w.id) + '</div>';
+    html += '<div class="worker-name">' + escapeHtml(w.title || w.id) + ' <span class="worker-badge ' + cls + '">' + badge + '</span></div>';
+    html += '<div class="worker-scope">' + escapeHtml(scope) + '</div>';
+    html += '<div class="worker-meta">';
+    html += '<span class="worker-status ' + statusCls + '">' + statusLabel + '</span>';
+    if (historyText) html += '<span class="worker-history-count">' + historyText + '</span>';
+    html += currentTaskText;
+    html += '</div></div>';
+  }); }
+  grid.innerHTML = html;
+}
+
 function updateStatsBar(data) {
+  var workers = data.workers || [];
   var dag = data.dag || [];
   var goal = data.goal || '';
   document.getElementById('statsGoal').textContent = goal ? ('🎯 ' + goal) : ('🎯 ' + LANG.pageTitle);
@@ -435,6 +533,8 @@ function updateStatsBar(data) {
   document.getElementById('statInProgress').textContent = counts.in_progress;
   document.getElementById('statReady').textContent = counts.ready;
   document.getElementById('statBlocked').textContent = counts.blocked;
+  document.getElementById('statWorkers').textContent = workers.length;
+  document.getElementById('statBusy').textContent = workers.filter(function(w){return w.status==='busy';}).length;
 }
 
 function areDepsSatisfied(task, data) {
@@ -499,6 +599,9 @@ function renderAll(data) {
   });
 
   var html = '';
+  if (dag.length === 0) {
+    html = '<div class="no-tasks">' + LANG.noTasks + '</div>';
+  } else {
   layerOrder.forEach(function(layerKey, layerIdx) {
     var tasks = dag.filter(function(t) {
       return (taskLayerMap[t.taskId] || 'default') === layerKey;
@@ -562,7 +665,7 @@ function renderAll(data) {
     });
 
     html += '</div></div>';
-  });
+  }); }
 
   document.getElementById('dagContainer').innerHTML =
     '<svg class="arrow-svg" id="arrowSvg"><defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cbd5e1"/></marker></defs></svg>' + html;
@@ -579,6 +682,44 @@ function translateLayerName(name) {
     'Features': '功能层', 'Integration': '集成层'
   };
   return map[name] || name;
+}
+
+
+function showWorkerDetail(workerId) {
+  var data = window.__dagData;
+  if (!data) return;
+  var worker = null;
+  (data.workers || []).forEach(function(w) { if (w.id === workerId) worker = w; });
+  if (!worker) return;
+
+  var history = worker.history || [];
+  var historyHtml = '';
+  if (history.length > 0) {
+    history.forEach(function(h) {
+      historyHtml += '<div style="margin-bottom:8px;padding:8px 12px;background:var(--layer-bg);border-radius:8px;font-size:13px">';
+      historyHtml += '<div style="font-weight:600;font-size:12px;color:#6366f1">' + escapeHtml(h.taskId) + '</div>';
+      historyHtml += '<div style="margin:2px 0">' + escapeHtml(h.title) + '</div>';
+      historyHtml += '<div style="font-size:11px;color:var(--text-secondary)">' + escapeHtml(h.description || '') + '</div>';
+      if (h.completedAt) historyHtml += '<div style="font-size:10px;color:var(--text-secondary);margin-top:4px">' + escapeHtml(h.completedAt) + '</div>';
+      historyHtml += '</div>';
+    });
+  } else {
+    historyHtml = '<span style="color:var(--text-secondary);font-size:13px">' + LANG.noDeps + '</span>';
+  }
+
+  var files = worker.files || [];
+  var filesHtml = files.map(function(f) { return '<span class="tag">' + escapeHtml(f) + '</span>'; }).join('');
+
+  document.getElementById('detailPanel').innerHTML =
+    '<button class="close-btn" onclick="hideDetail()">✕</button>' +
+    '<div class="detail-id">' + escapeHtml(worker.id) + '</div>' +
+    '<div class="detail-title">' + escapeHtml(worker.title || worker.id) + '</div>' +
+    '<div class="detail-section"><h4>' + LANG.detailStatus + '</h4><p>' + (worker.status === 'busy' ? LANG.workerBusy : LANG.workerIdle) + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailDesc + '</h4><p>' + escapeHtml(worker.scope || '') + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.workerHistory + ' (' + history.length + ')</h4>' + historyHtml + '</div>' +
+    '<div class="detail-section"><h4>' + LANG.detailOutputs + '</h4><div class="tag-list">' + filesHtml + '</div></div>';
+
+  document.getElementById('detailOverlay').classList.add('show');
 }
 
 function showDetail(taskId) {
@@ -694,6 +835,7 @@ function poll() {
     if (currentJson !== lastJson) {
       lastJson = currentJson;
       renderAll(data);
+      renderWorkers(data);
       updateStatsBar(data);
     }
     setConnectionStatus(true);
@@ -712,6 +854,7 @@ window.addEventListener('DOMContentLoaded', function() {
   }).then(function(data) {
     lastJson = JSON.stringify(data);
     renderAll(data);
+    renderWorkers(data);
     updateStatsBar(data);
     setConnectionStatus(true);
     updateTimestamp();
