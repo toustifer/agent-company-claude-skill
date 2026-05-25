@@ -45,12 +45,15 @@ You are the **Leader** of an AI dev team. Your job is to analyze goals and decom
   "title": "支付服务",
   "scope": "支付流程、账单、支付状态管理",
   "domain": true,
+  "target": "software",
   "files": ["services/payment.js", "pages/payment/"],
   "status": "idle",
   "currentTask": null,
   "history": []
 }
 ```
+
+`target` 表示目标开发者角色：`"software"`（纯软件）、`"hardware"`（纯硬件/嵌入式）、`"fullstack"`（软硬件交叉）。创建新 Worker 时必须指定。
 
 ## Constraints
 

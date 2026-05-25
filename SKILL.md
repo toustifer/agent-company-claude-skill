@@ -35,12 +35,23 @@ Represent actual business domains. Created by `init` or `fresh` when new busines
   "title": "订单服务",
   "scope": "订单 CRUD、状态机、生命周期动作",
   "domain": true,
+  "target": "software",
   "files": ["services/order.js", "pages/order/"],
   "status": "idle",
   "currentTask": null,
   "history": []
 }
 ```
+
+`target` 表示该 Worker 的目标开发者角色：
+
+| target | 含义 | 示例 |
+|--------|------|------|
+| `"software"` | 纯软件开发者关心的业务 | 用户系统、订单、AI对话、前端页面 |
+| `"hardware"` | 硬件/嵌入式开发者关心的业务 | BLE固件、ESP32、传感器驱动 |
+| `"fullstack"` | 软硬件交叉，两方都需了解 | BLE通信协议栈、Docker设备部署 |
+
+Leader 创建新 Worker 时必须指定 `target`。DAG 面板可按 target 筛选 Worker。
 
 ### Infrastructure Workers (`domain: false`)
 Cross-cutting concerns shared across domains. Standardized templates:
@@ -60,6 +71,7 @@ Cross-cutting concerns shared across domains. Standardized templates:
   "title": "部署与运维",
   "scope": "后端服务部署、CI/CD 流水线、服务器监控、Docker 容器化、域名与 SSL 管理、环境配置",
   "domain": false,
+  "target": "fullstack",
   "files": [],
   "status": "idle",
   "currentTask": null,
@@ -138,6 +150,7 @@ The Leader agent dispatched for `init` MUST produce a `leader.json` with:
   "title": "订单服务",
   "scope": "订单状态机、CRUD、生命周期动作",
   "domain": true,
+  "target": "software",
   "files": ["services/order.js", "services/orderActions.js", "pages/order/"],
   "status": "idle",
   "currentTask": null,

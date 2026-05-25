@@ -107,6 +107,23 @@ body {
 .worker-badge.domain { background: #ede9fe; color: #7c3aed; }
 .worker-badge.infra { background: #f0fdf4; color: #16a34a; }
 
+.worker-badge.software { background: #dbeafe; color: #2563eb; }
+.worker-badge.hardware { background: #fce7f3; color: #db2777; }
+.worker-badge.fullstack { background: #fef3c7; color: #d97706; }
+
+.target-filter-bar { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.target-filter-btn {
+  font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 999px;
+  border: 1.5px solid var(--border); background: var(--bg); color: var(--text-secondary);
+  cursor: pointer; transition: all 0.15s ease;
+}
+.target-filter-btn:hover { border-color: #94a3b8; color: var(--text); }
+.target-filter-btn.active { color: #fff; border-color: transparent; }
+.target-filter-btn.active[data-target="all"] { background: #64748b; }
+.target-filter-btn.active[data-target="software"] { background: #2563eb; }
+.target-filter-btn.active[data-target="hardware"] { background: #db2777; }
+.target-filter-btn.active[data-target="fullstack"] { background: #d97706; }
+
 .worker-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .worker-status-dot.idle { background: #22c55e; }
 .worker-status-dot.busy { background: #3b82f6; animation: pulse-dot 1.5s ease-in-out infinite; }
@@ -260,6 +277,12 @@ body {
 <!-- Workers 面板：展示所有持久化领域 Worker -->
 <div class="workers-section" id="workersSection">
   <h2><span id="lblWorkers">业务域 Worker</span> <span class="count" id="workersCount"></span></h2>
+  <div class="target-filter-bar" id="targetFilterBar">
+    <button class="target-filter-btn active" data-target="all" onclick="filterWorkers('all')"><span id="lblFilterAll">全部</span></button>
+    <button class="target-filter-btn" data-target="software" onclick="filterWorkers('software')"><span id="lblFilterSoftware">软件</span></button>
+    <button class="target-filter-btn" data-target="hardware" onclick="filterWorkers('hardware')"><span id="lblFilterHardware">硬件</span></button>
+    <button class="target-filter-btn" data-target="fullstack" onclick="filterWorkers('fullstack')"><span id="lblFilterFullstack">交叉</span></button>
+  </div>
   <div class="workers-grid" id="workersGrid"></div>
 </div>
 
@@ -311,6 +334,8 @@ var LABELS = {
     lblWorkers: '业务域 Worker', noWorkers: '暂无 Worker 定义',
     noTasks: '暂无待办任务', domainWorker: '业务域', infraWorker: '基础设施',
     fileCount: '个文件', historyCount: '条历史', ownerLabel: '负责人',
+    workerTarget: '角色', targetSoftware: '软件', targetHardware: '硬件', targetFullstack: '交叉',
+    filterAll: '全部', filterSoftware: '软件', filterHardware: '硬件', filterFullstack: '交叉',
     workerStatus: '状态', workerScope: '范畴', workerType: '类型',
     workerFiles: '文件', workerHistory: '已完成任务'
   },
@@ -334,6 +359,8 @@ var LABELS = {
     lblWorkers: 'Domain Workers', noWorkers: 'No workers defined',
     noTasks: 'No pending tasks', domainWorker: 'Domain', infraWorker: 'Infra',
     fileCount: 'files', historyCount: 'tasks', ownerLabel: 'Owner',
+    workerTarget: 'Target', targetSoftware: 'Software', targetHardware: 'Hardware', targetFullstack: 'Fullstack',
+    filterAll: 'All', filterSoftware: 'Software', filterHardware: 'Hardware', filterFullstack: 'Fullstack',
     workerStatus: 'Status', workerScope: 'Scope', workerType: 'Type',
     workerFiles: 'Files', workerHistory: 'Task History'
   }
@@ -382,6 +409,10 @@ function switchLang(lang) {
   document.getElementById('lblInProgress').textContent = LANG.statsInProgress;
   document.getElementById('lblReady').textContent = LANG.statsReady;
   document.getElementById('lblBlocked').textContent = LANG.statsBlocked;
+  document.getElementById('lblFilterAll').textContent = LANG.filterAll;
+  document.getElementById('lblFilterSoftware').textContent = LANG.filterSoftware;
+  document.getElementById('lblFilterHardware').textContent = LANG.filterHardware;
+  document.getElementById('lblFilterFullstack').textContent = LANG.filterFullstack;
   if (window.__dagData) {
     renderWorkers(window.__dagData);
     renderAll(window.__dagData);
@@ -407,29 +438,60 @@ function fetchLang() {
 // ============================================================
 // Workers Rendering
 // ============================================================
+var currentTargetFilter = 'all';
+
+function targetLabel(t) {
+  if (!t || t === 'software') return LANG.targetSoftware;
+  if (t === 'hardware') return LANG.targetHardware;
+  if (t === 'fullstack') return LANG.targetFullstack;
+  return LANG.targetSoftware;
+}
+
+function filterWorkers(target) {
+  currentTargetFilter = target;
+  var btns = document.querySelectorAll('.target-filter-btn');
+  btns.forEach(function(b) {
+    b.classList.toggle('active', b.getAttribute('data-target') === target);
+  });
+  renderWorkers(window.__dagData);
+}
+
 function renderWorkers(data) {
   var workers = data.workers || [];
   var grid = document.getElementById('workersGrid');
   document.getElementById('lblWorkers').textContent = LANG.lblWorkers;
-  document.getElementById('workersCount').textContent = '(' + workers.length + ')';
 
-  if (workers.length === 0) {
+  var filtered = workers;
+  if (currentTargetFilter !== 'all') {
+    filtered = workers.filter(function(w) {
+      var t = w.target || 'software';
+      if (currentTargetFilter === 'fullstack') return t === 'fullstack';
+      if (currentTargetFilter === 'hardware') return t === 'hardware' || t === 'fullstack';
+      if (currentTargetFilter === 'software') return t === 'software' || t === 'fullstack';
+      return true;
+    });
+  }
+  document.getElementById('workersCount').textContent = '(' + filtered.length + '/' + workers.length + ')';
+
+  if (filtered.length === 0) {
     grid.innerHTML = '<div class="no-workers">' + LANG.noWorkers + '</div>';
     return;
   }
 
   var html = '';
-  workers.forEach(function(w) {
+  filtered.forEach(function(w) {
     var badgeCls = w.domain ? 'domain' : 'infra';
     var badgeText = w.domain ? LANG.domainWorker : LANG.infraWorker;
     var fileCount = (w.files || []).length;
     var historyCount = (w.history || []).length;
+    var tgt = w.target || 'software';
 
     html += '<div class="worker-card' + (w.status === 'busy' ? ' busy' : '') + '" onclick="showWorkerDetail(\'' + w.id + '\')">';
     html += '<div class="worker-header">';
     html += '<span class="worker-status-dot ' + (w.status === 'busy' ? 'busy' : 'idle') + '"></span>';
     html += '<span class="worker-name">' + escapeHtml(w.title) + '</span>';
     html += '<span class="worker-badge ' + badgeCls + '">' + badgeText + '</span>';
+    html += '<span class="worker-badge ' + tgt + '">' + targetLabel(tgt) + '</span>';
     html += '</div>';
     html += '<div class="worker-scope">' + escapeHtml(w.scope || '') + '</div>';
     html += '<div class="worker-meta">';
@@ -479,6 +541,7 @@ function showWorkerDetail(workerId) {
     '<div class="detail-section"><h4>' + LANG.workerStatus + '</h4><p>' + statusText + '</p></div>' +
     '<div class="detail-section"><h4>' + LANG.workerScope + '</h4><p>' + escapeHtml(worker.scope || '') + '</p></div>' +
     '<div class="detail-section"><h4>' + LANG.workerType + '</h4><p>' + (worker.domain ? LANG.domainWorker : LANG.infraWorker) + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.workerTarget + '</h4><p>' + targetLabel(worker.target) + '</p></div>' +
     '<div class="detail-section"><h4>' + LANG.ownerLabel + '</h4><p>' + escapeHtml(worker.owner || LANG.notAssigned) + '</p></div>' +
     '<div class="detail-section"><h4>' + LANG.workerFiles + ' (' + (worker.files || []).length + ')</h4><div class="tag-list">' + filesHtml + '</div></div>' +
     historyHtml;
