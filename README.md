@@ -1,162 +1,194 @@
 # /agent-company — Claude Code 虚拟开发团队
 
-把 Claude Code 变成一个由 AI 组成的多人开发团队。**Leader Agent** 负责将目标拆解为任务依赖图（DAG），**持久化的领域 Worker** 并行独立执行，**浏览器中的实时 DAG 面板** 展示进度。多人通过 **Git 推送达成的分布式锁** 实现协作，无需额外服务。
+## 你也许遇到过这样的问题
+
+想象一家软件公司。今天新入职了一位工程师，他被拉进一个已经跑了半年的项目——几十个模块、上百个文件、散落在各处的设计决策。他问同事"这个认证逻辑在哪？""之前为什么选了 JWT 而不是 session？""上次那个 bug 是谁修的、怎么修的？"
+
+带他的人被打断了三次。他自己翻了三天代码才敢动手改第一个文件。两个月后他离职了，换了一个新人，同样的问题从头再来一遍。
+
+**这不是人的问题，是上下文无法传递的问题。**
+
+---
+
+现在把场景换到 AI 辅助编程。你每次在 Claude Code 里开始一个新会话，本质上就是在"雇一个新人"——它不记得上一轮对话里你们讨论过什么，不记得上次改了哪些文件、为什么那样改。你反复复制粘贴同样的上下文、解释同样的架构、描述同样的约束。Token 在燃烧，耐心也在燃烧。
+
+**AI 不记上下文，是因为你没给它一个持久化的记忆系统。**
+
+---
+
+## 我们的方案：把 AI 当成一个真正的团队
+
+agent-company 做的不是"让 AI 帮你写代码"。它做的是**让 AI 像一支真正的工程团队一样运转**——每个人都有自己负责的领域，每个人都记得自己做过什么，新人加入时自动继承前人留下的全部上下文。
+
+```
+  ┌──────────────────────────────────────────────────────┐
+  │              Leader（需求拆解 + 任务分配）               │
+  └──────────────────────┬───────────────────────────────┘
+                         │
+         ┌───────────────┼───────────────┐
+         ▼               ▼               ▼
+   ┌──────────┐   ┌──────────┐   ┌──────────┐
+   │ 认证 Worker│   │ 订单 Worker│   │ 聊天 Worker│   ← 每人只负责自己的域
+   │ scope:   │   │ scope:   │   │ scope:   │
+   │  微信登录 │   │  订单CRUD │   │  AI对话  │
+   │ files:   │   │ files:   │   │ files:   │
+   │  auth/   │   │  order/  │   │  chat/   │
+   │ history: │   │ history: │   │ history: │
+   │  T1,T5,T9│   │  T2,T6   │   │  T3,T7   │   ← 做过的事永远记得
+   └──────────┘   └──────────┘   └──────────┘
+```
+
+**核心思想很简单：Worker 不是一次性工具人，是持久的业务域专家。**
+
+---
+
+## 三个信息，让 AI 不再"新人入职"
+
+每个 Worker 在被派发任务前，通过三个信息源秒懂自己的业务上下文。就像新员工入职时 HR 递过来的三份文件：
+
+### 1. scope — "你管什么"
+
+一句话说清楚这个 Worker 负责的业务范围。比如 `"微信登录、token 管理、自动登录、session 恢复"`。Worker 启动时先读这个，瞬间知道自己是谁、该关心什么。
+
+### 2. files — "代码在哪"
+
+精确的代码领地清单。`["services/auth/", "api/auth.js", "pages/login/"]`。Worker 不需要在整个仓库里大海捞针，它知道自己的一亩三分地在哪。同时这些路径也是**边界**——Worker 原则上不碰领地之外的代码。
+
+### 3. history[] — "之前做过什么"
+
+这是最关键的设计。每次任务完成后，一条记录写入 Worker 的 `history[]`：
+
+```json
+{
+  "taskId": "T5",
+  "title": "添加 token 自动刷新",
+  "description": "在 request.js 中拦截 401，静默调用 refreshToken 续期后重放原始请求",
+  "completedAt": "2026-05-22",
+  "outputFiles": ["services/auth/refreshToken.js", "api/request.js"]
+}
+```
+
+下次这个 Worker 接到新任务时，它先翻自己的 `history[]`——上次改了 refreshToken.js，这次可能也要动；上次 request.js 加了拦截器，这次注意别破坏；上次按那个模式写的，这次保持一致。
+
+**效果是什么？** 同一个 Worker 执行了 T1、T5、T9 三个任务后，它对认证域的理解已经超过大多数"第一次接手这个模块"的人类工程师。而且这些理解**永远不丢**——新建一个 Claude Code 会话，Worker 自动读取 `history[]`，瞬间恢复全部上下文。
+
+```
+T1 (接入微信登录) ──→ 写入 history
+T5 (token 刷新)   ──→ 写入 history  
+T9 (多端登录)     ──→ 写入 history
+                         │
+                         ▼
+              Worker 的历史上下文层叠累积
+              后续任务的理解成本趋近于零
+```
+
+---
 
 ## 快速开始
 
 ```bash
-# 1. 安装（克隆到 Claude Code skills 目录）
-git clone https://github.com/toustifer/agent-company-claude-skill.git ~/.claude/skills/agent-company/
+# 1. 安装
+git clone https://github.com/toustifer/agent-company-claude-skill.git \
+  ~/.claude/skills/agent-company/
 
-# 2. 在已有项目中，首次设置（分析代码库，建立基线 Worker）
+# 2. 首次设置（扫描代码库，发现业务域，创建 Worker）
 /agent-company init
 
-# 3. 添加第一个工作目标（Leader 自动分配到对应 Worker）
+# 3. 提第一个需求
 /agent-company "接入微信登录"
 
-# 4. 在浏览器中查看实时 DAG 面板
+# 4. 浏览器中查看 DAG 面板
 open http://localhost:8765/dag.html
 
 # 5. 确认无误后回复 confirm，Worker 开始执行
 confirm
-
-# 6. 随时恢复之前的会话
-/agent-company resume
 ```
+
+---
 
 ## 命令一览
 
 | 命令 | 作用 |
 |------|------|
-| `/agent-company init` | **首次初始化** — 扫描现有代码库，发现业务域，创建持久 Worker 基线 |
-| `/agent-company "目标"` | **新增需求** — Leader 拆解目标、分配给已有 Worker、追加到 DAG |
+| `/agent-company init` | **首次初始化** — 扫描代码库，发现业务域，创建持久 Worker |
+| `/agent-company "目标"` | **新增需求** — Leader 拆解、分配到已有 Worker、追加到 DAG |
 | `/agent-company resume` | **恢复会话** — 加载上次状态，继续未完成的任务 |
-| `/agent-company status` | **查看状态** — 展示 Worker 和 DAG 概览，不开始任何工作 |
-| `/agent-company fresh` | **架构体检** — 审查 Worker 产出 + Git 历史，检查业务域覆盖，提出优化建议 |
-| `/agent-company reset` | **重新分析** — 备份旧状态，重新扫描代码库，重建 Worker 清单 |
-| `/agent-company update` | **Git 同步** — `git pull` 拉取最新状态 + `git push` 推送本地变更 |
-| `/agent-company review [T5]` | **审查** — 不加参数显示所有已空闲任务；加 taskId 重新验证该任务 |
-| `/agent-company upgrade` | **更新技能** — `git pull` SKILL.md、agents、dag-template 到最新版 |
-| `/agent-company lang zh\|en` | **切换语言** — DAG 页面 UI 标签中英文切换 |
+| `/agent-company status` | **查看状态** — Worker 和 DAG 概览 |
+| `/agent-company fresh` | **架构体检** — 审查 Worker 产出 + Git 历史 + 业务域覆盖 |
+| `/agent-company reset` | **重新分析** — 备份后重建 Worker 清单 |
+| `/agent-company update` | **Git 同步** — pull + push |
+| `/agent-company review [T5]` | **审查** — 展示已空闲任务或重新验证指定任务 |
+| `/agent-company upgrade` | **更新技能** — 拉取最新 SKILL.md / agents / dag-template |
+| `/agent-company lang zh\|en` | **切换语言** — DAG 面板中英文切换 |
 
-## 核心设计：领域 Worker
-
-Worker 不是一次性的任务执行者，而是**持久的业务域专家**。每个 Worker：
-
-- 拥有一个业务域（如 `worker-auth` 管所有认证逻辑，`worker-order` 管所有订单逻辑）
-- 累积 `history[]` 记录所有已完成任务 —— 上下文永不丢失
-- 状态为 `idle`（空闲可接任务）或 `busy`（正在执行中）
-- **永不删除** —— 只在业务域边界变化时合并或拆分
-
-```
-项目启动 → init 扫描代码 → 发现业务域 → 创建持久 Worker → 有任务时 busy，无事 idle
-                                                      → 新需求来了，分配给已有 Worker
-                                                      → 新业务域出现，才创建新 Worker
-```
-
-新任务进入 `dag[]`。完成后，任务从 DAG 中移除，归档到对应 Worker 的 `history[]`。
-
-### Worker 如何理解自己的业务
-
-每个 Worker 在被派发任务前，通过三个信息源快速建立上下文，无需从零阅读代码：
-
-```
-┌─ scope（业务域描述）         → "我管什么"
-│  例："微信登录、token 管理、自动登录、session 恢复"
-│
-├─ files（代码位置）            → "代码在哪"
-│  例：["services/auth/", "api/auth.js", "pages/login/"]
-│
-└─ history[]（工作日志）        → "之前做过什么"
-    ├─ T1: 接入真实微信登录 — 替换 mock wx.login，新增 token 持久化
-    ├─ T5: token 自动刷新 — 401 拦截器 + refreshToken 静默续期
-    └─ T9: ...
-```
-
-**工作流：**
-
-1. Leader 分析新需求 → 决定分配给哪个 Worker → 填写 `assignedWorker`
-2. Worker 启动 → 读 `leader.json` 中自己的 `scope` + `files` + `history[]`
-3. Worker 读 `history[]` 中上一次任务的 `outputFiles` → 精确知道哪些文件要关注
-4. Worker 读依赖模块的文档 → 理解上下游接口
-5. Worker 执行 → 完成后写报告到 `workers/{id}.json` → 任务归档到 `history[]`
-
-越常用的 Worker 积累越多 history，后续任务的理解成本越低。
+---
 
 ## 多人协作
 
-多人通过共享 Git 仓库协作，**`git push` 即是分布式锁**：
+多人通过共享 Git 仓库协作。**`git push` 即是分布式锁**——不需要额外的任务分配服务：
 
 ```
 同事 A: git pull → 认领 T5 → commit + push ✅（锁获取成功）
-同事 B: git pull → T5 已被 A 认领 → 跳过 → 找 T6
+同事 B: git pull → T5 已被 A 认领 → 跳过 → 找下一个就绪任务
 ```
 
-认领超过 30 分钟未完成自动过期，其他人可重新认领。
+认领超过 30 分钟未完成自动过期。
 
-**每人首次使用：**
+**首次使用：** 在项目里执行 `/agent-company`，根据提示输入名字。身份信息写入 `.mycompany/identity.json`（Git 忽略，不入库）。
 
-```bash
-git clone <仓库地址>
-cd <项目目录>
+---
 
-# 在 Claude Code 中执行（自动创建 .mycompany/identity.json，不入库）
-/agent-company
-
-# 根据提示输入你的名字（如 "stifer"）
-# 身份信息存储在 .mycompany/identity.json —— 不会提交到 Git
-```
-
-## 工作流程
+## 工作流
 
 ```
 /agent-company "目标"
     │
     ▼
-Phase 1: Leader 拆解目标 → leader.json（DAG + Worker 分配）
+Phase 1: Leader 拆解需求 → leader.json（DAG + Worker 分配）
     │
     ▼
-Phase 1.5: DAG 可视化面板（浏览器实时更新，Worker 卡片 + 任务依赖图）
+Phase 1.5: DAG 面板（浏览器实时更新，Worker 卡片 + 任务依赖图）
     │
-    ▼ （用户确认）
-Phase 2: Worker 认领任务 → 并行执行（最多 3 个）→ git push
+    ▼  （用户 confirm）
+Phase 2: Worker 读 scope + files + history → 并行执行（最多 3 个）
     │
     ▼
 Phase 2.5: Review 审查（逐条验证验收标准）
     │
     ▼
-Phase 3: 完成任务归档至 Worker 历史，DAG 清空
+Phase 3: 任务归档至 Worker history[] → DAG 清空 → history 层叠累积
 ```
+
+---
 
 ## 仓库文件
 
 | 文件 | 说明 |
 |------|------|
-| `SKILL.md` | 完整技能定义 — 所有阶段、协议、模板（33KB） |
-| `dag-template.html` | 实时 DAG 可视化面板模板（中文/英文双语） |
-| `agents/leader.md` | Leader Agent 系统提示词（需求拆解 + Worker 分配） |
-| `agents/worker.md` | Worker Agent 系统提示词（领域感知的代码执行） |
-| `agents/reviewer.md` | Reviewer Agent 系统提示词（验收标准验证） |
+| `SKILL.md` | 完整技能定义 — 全部阶段、协议、模板（33KB） |
+| `dag-template.html` | DAG 面板模板（中英双语，每 2 秒自动刷新） |
+| `agents/leader.md` | Leader Agent 系统提示词 |
+| `agents/worker.md` | Worker Agent 系统提示词（领域感知） |
+| `agents/reviewer.md` | Reviewer Agent 系统提示词（验收验证） |
 | `README.md` | 本文件 |
 
-## 项目生成的文件结构
+## 生成的文件结构
 
 ```
 .mycompany/
   config.json              ← 共享设置（language），Git 跟踪
-  identity.json            ← 个人身份（userId、name），Git 忽略，不入库
+  identity.json            ← 个人身份（userId、name），Git 忽略
   sessions/
-    leader.json            ← DAG + Workers 状态（唯一事实来源）
-    dag.html               ← 实时 DAG 面板（每 2 秒自动刷新）
-    lang.json              ← 语言设置
+    leader.json            ← DAG + Workers 状态（单一事实来源）
+    dag.html               ← 实时面板
     workers/               ← Worker 完成报告
-  memory/                  ← 项目上下文 & 架构决策记录
+  memory/                  ← 项目上下文 & 架构决策
   tasks/                   ← 收件箱 & 已完成日志
 ```
 
 ## 环境要求
 
 - Claude Code CLI
-- Python 3（用于本地 HTTP 服务器，为 DAG 面板提供数据）
-- Git（多人协作必需）
+- Python 3（本地 HTTP 服务器，为 DAG 面板提供数据）
+- Git（多人协作）
 - 浏览器（查看 DAG 面板）
