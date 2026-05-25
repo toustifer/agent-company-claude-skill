@@ -56,6 +56,33 @@ Worker 不是一次性的任务执行者，而是**持久的业务域专家**。
 
 新任务进入 `dag[]`。完成后，任务从 DAG 中移除，归档到对应 Worker 的 `history[]`。
 
+### Worker 如何理解自己的业务
+
+每个 Worker 在被派发任务前，通过三个信息源快速建立上下文，无需从零阅读代码：
+
+```
+┌─ scope（业务域描述）         → "我管什么"
+│  例："微信登录、token 管理、自动登录、session 恢复"
+│
+├─ files（代码位置）            → "代码在哪"
+│  例：["services/auth/", "api/auth.js", "pages/login/"]
+│
+└─ history[]（工作日志）        → "之前做过什么"
+    ├─ T1: 接入真实微信登录 — 替换 mock wx.login，新增 token 持久化
+    ├─ T5: token 自动刷新 — 401 拦截器 + refreshToken 静默续期
+    └─ T9: ...
+```
+
+**工作流：**
+
+1. Leader 分析新需求 → 决定分配给哪个 Worker → 填写 `assignedWorker`
+2. Worker 启动 → 读 `leader.json` 中自己的 `scope` + `files` + `history[]`
+3. Worker 读 `history[]` 中上一次任务的 `outputFiles` → 精确知道哪些文件要关注
+4. Worker 读依赖模块的文档 → 理解上下游接口
+5. Worker 执行 → 完成后写报告到 `workers/{id}.json` → 任务归档到 `history[]`
+
+越常用的 Worker 积累越多 history，后续任务的理解成本越低。
+
 ## 多人协作
 
 多人通过共享 Git 仓库协作，**`git push` 即是分布式锁**：
