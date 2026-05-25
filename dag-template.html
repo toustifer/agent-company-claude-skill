@@ -3,92 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>知迹伴学 · DAG 总览</title>
+<title>Agent Company · 任务面板</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --pending: #f1f5f9;
-  --pending-border: #94a3b8;
-  --pending-text: #475569;
-  --ready: #fffbeb;
-  --ready-border: #f59e0b;
-  --ready-text: #92400e;
-  --blocked: #f8fafc;
-  --blocked-border: #e2e8f0;
-  --blocked-text: #94a3b8;
-  --in-progress: #dbeafe;
-  --in-progress-border: #3b82f6;
-  --in-progress-text: #1e40af;
-  --idle: #dcfce7;
-  --idle-border: #22c55e;
-  --idle-text: #166534;
-  --layer-bg: #f8fafc;
-  --arrow: #cbd5e1;
-  --bg: #ffffff;
-  --text: #1e293b;
-  --text-secondary: #64748b;
-  --border: #e2e8f0;
+  --pending: #f1f5f9; --pending-border: #94a3b8; --pending-text: #475569;
+  --ready: #fffbeb; --ready-border: #f59e0b; --ready-text: #92400e;
+  --blocked: #f8fafc; --blocked-border: #e2e8f0; --blocked-text: #94a3b8;
+  --in-progress: #dbeafe; --in-progress-border: #3b82f6; --in-progress-text: #1e40af;
+  --idle: #dcfce7; --idle-border: #22c55e; --idle-text: #166534;
+  --layer-bg: #f8fafc; --arrow: #cbd5e1; --bg: #ffffff;
+  --text: #1e293b; --text-secondary: #64748b; --border: #e2e8f0;
   --card-shadow: 0 1px 3px rgba(0,0,0,0.08);
   --card-hover-shadow: 0 4px 12px rgba(0,0,0,0.12);
 }
 
-/* 夜间模式 */
 [data-theme="dark"] {
-  --pending: #1e293b;
-  --pending-border: #475569;
-  --pending-text: #94a3b8;
-  --ready: #422006;
-  --ready-border: #92400e;
-  --ready-text: #fbbf24;
-  --blocked: #0f172a;
-  --blocked-border: #334155;
-  --blocked-text: #64748b;
-  --in-progress: #172554;
-  --in-progress-border: #3b82f6;
-  --in-progress-text: #93c5fd;
-  --idle: #052e16;
-  --idle-border: #22c55e;
-  --idle-text: #86efac;
-  --layer-bg: #1e293b;
-  --arrow: #475569;
-  --bg: #1e293b;
-  --text: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --border: #334155;
+  --pending: #1e293b; --pending-border: #475569; --pending-text: #94a3b8;
+  --ready: #422006; --ready-border: #92400e; --ready-text: #fbbf24;
+  --blocked: #0f172a; --blocked-border: #334155; --blocked-text: #64748b;
+  --in-progress: #172554; --in-progress-border: #3b82f6; --in-progress-text: #93c5fd;
+  --idle: #052e16; --idle-border: #22c55e; --idle-text: #86efac;
+  --layer-bg: #1e293b; --arrow: #475569; --bg: #1e293b;
+  --text: #f1f5f9; --text-secondary: #94a3b8; --border: #334155;
   --card-shadow: 0 1px 3px rgba(0,0,0,0.3);
   --card-hover-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
-
 [data-theme="dark"] body { background: #0f172a; }
-
-.theme-toggle {
-  margin-left: 4px;
-}
-.theme-toggle button {
-  font-size: 14px; padding: 2px 6px; border: 1px solid var(--border);
-  background: var(--bg); border-radius: 4px; cursor: pointer; color: var(--text);
-}
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  background: #f1f5f9;
-  color: var(--text);
-  line-height: 1.5;
-  padding: 24px;
+  background: #f1f5f9; color: var(--text); line-height: 1.5; padding: 24px;
 }
 
+/* === Stats Bar === */
 .stats-bar {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 24px;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  margin-bottom: 20px;
-  box-shadow: var(--card-shadow);
-  flex-wrap: wrap;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 24px; display: flex; align-items: center; gap: 24px;
+  margin-bottom: 20px; box-shadow: var(--card-shadow); flex-wrap: wrap;
 }
 .stats-goal { font-weight: 600; font-size: 15px; margin-right: auto; }
 .stat-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
@@ -104,13 +57,14 @@ body {
 .conn-dot.online { background: #22c55e; }
 .conn-dot.offline { background: #ef4444; }
 
-.lang-switch { margin-left: 8px; }
-.lang-switch button {
+.lang-switch button, .theme-toggle button {
   font-size: 11px; padding: 2px 8px; border: 1px solid var(--border);
   background: var(--bg); border-radius: 4px; cursor: pointer; color: var(--text-secondary);
 }
 .lang-switch button.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+.theme-toggle button { font-size: 14px; padding: 2px 6px; }
 
+/* === Legend === */
 .legend {
   position: fixed; top: 24px; right: 24px;
   background: var(--bg); border: 1px solid var(--border);
@@ -126,27 +80,48 @@ body {
 .swatch.in-progress { background: var(--in-progress); border-color: var(--in-progress-border); }
 .swatch.idle { background: var(--idle); border-color: var(--idle-border); }
 
+/* === Workers Section === */
+.workers-section { margin-bottom: 20px; }
+.workers-section h2 {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+}
+.workers-section h2 .count { font-size: 12px; font-weight: 400; color: var(--text-secondary); }
+.workers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+
+.worker-card {
+  background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; cursor: pointer; transition: all 0.15s ease; box-shadow: var(--card-shadow);
+}
+.worker-card:hover { box-shadow: var(--card-hover-shadow); transform: translateY(-1px); }
+.worker-card.busy { border-color: #3b82f6; background: #eff6ff; }
+[data-theme="dark"] .worker-card.busy { background: #172554; }
+.worker-card .worker-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.worker-card .worker-name { font-size: 14px; font-weight: 600; }
+.worker-card .worker-scope { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+.worker-card .worker-meta { display: flex; gap: 12px; font-size: 11px; color: var(--text-secondary); }
+
+.worker-badge {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+}
+.worker-badge.domain { background: #ede9fe; color: #7c3aed; }
+.worker-badge.infra { background: #f0fdf4; color: #16a34a; }
+
+.worker-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.worker-status-dot.idle { background: #22c55e; }
+.worker-status-dot.busy { background: #3b82f6; animation: pulse-dot 1.5s ease-in-out infinite; }
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+.worker-owner { font-size: 10px; color: var(--text-secondary); margin-top: 6px; }
+.worker-owner .owner-tag {
+  display: inline-block; background: #fef3c7; color: #92400e;
+  padding: 1px 6px; border-radius: 999px; font-weight: 500;
+}
+
+/* === DAG / Task Nodes === */
 .dag-container {
-  position: relative; background: var(--bg);
-  border: 1px solid var(--border); border-radius: 12px;
-  box-shadow: var(--card-shadow); overflow: auto; min-height: 300px;
-}
-
-.loading-state {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding: 80px 24px; color: var(--text-secondary);
-}
-.loading-spinner {
-  width: 36px; height: 36px; border: 3px solid var(--border);
-  border-top-color: #6366f1; border-radius: 50%;
-  animation: spin 0.7s linear infinite; margin-bottom: 16px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.error-state { text-align: center; padding: 60px 24px; color: var(--text-secondary); }
-.error-state .retry-btn {
-  margin-top: 16px; padding: 8px 24px; background: #6366f1; color: #fff;
-  border: none; border-radius: 8px; cursor: pointer; font-size: 14px;
+  position: relative; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: var(--card-shadow); overflow: auto; min-height: 200px;
 }
 
 .layer { padding: 20px 24px 24px 24px; border-bottom: 1px solid var(--border); }
@@ -158,26 +133,17 @@ body {
   background: var(--layer-bg); padding: 4px 10px; border-radius: 6px;
 }
 .layer-name { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
-
 .nodes-row { display: flex; flex-wrap: wrap; gap: 16px; }
 
 .node {
-  background: var(--bg); border: 2px solid var(--pending-border);
-  border-radius: 10px; padding: 14px 16px; min-width: 180px; max-width: 240px;
-  cursor: pointer; transition: all 0.15s ease;
-  box-shadow: var(--card-shadow); flex: 1 1 180px; user-select: none;
-  position: relative;
+  background: var(--bg); border: 2px solid var(--pending-border); border-radius: 10px;
+  padding: 14px 16px; min-width: 180px; max-width: 240px;
+  cursor: pointer; transition: all 0.15s ease; box-shadow: var(--card-shadow);
+  flex: 1 1 180px; user-select: none; position: relative;
 }
 .node:hover { box-shadow: var(--card-hover-shadow); transform: translateY(-1px); }
-
-/* 阻塞态 */
 .node.blocked { border-style: dashed; border-color: var(--blocked-border); opacity: 0.65; background: var(--blocked); }
-.node.blocked:hover { opacity: 0.85; }
-
-/* 就绪态 */
 .node.ready { border-color: var(--ready-border); background: var(--ready); }
-
-/* 执行中 */
 .node.in-progress {
   background: var(--in-progress); border-color: var(--in-progress-border);
   animation: pulse 2.2s ease-in-out infinite;
@@ -186,89 +152,38 @@ body {
   0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.35); }
   50% { box-shadow: 0 0 0 8px rgba(59,130,246,0.06); }
 }
-
-/* 已完成 */
 .node.idle { background: var(--idle); border-color: var(--idle-border); }
 .node.idle::after {
-  content: '✓';
-  position: absolute; top: -8px; right: -8px;
-  width: 22px; height: 22px;
-  background: var(--idle-border); color: #fff;
+  content: '✓'; position: absolute; top: -8px; right: -8px;
+  width: 22px; height: 22px; background: var(--idle-border); color: #fff;
   border-radius: 50%; font-size: 12px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 2px 4px rgba(0,0,0,0.12);
 }
-
-.node.in-progress .task-id::before {
-  content: '◉ ';
-  color: var(--in-progress-border);
-  animation: spin 1.5s linear infinite;
-  display: inline-block;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
 .node.active { border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); animation: none !important; }
-
-/* Worker 芯片 */
-.node .worker-chip {
-  display: inline-block; font-size: 10px; font-weight: 600;
-  background: #ede9fe; color: #7c3aed;
-  padding: 2px 8px; border-radius: 999px; margin-top: 6px;
-}
-
-/* 认领人芯片 */
-.node .claimed-chip {
-  display: inline-block; font-size: 10px; font-weight: 600;
-  background: #fef3c7; color: #92400e;
-  padding: 2px 8px; border-radius: 999px; margin-top: 4px; margin-left: 4px;
-}
-
 .node .task-id {
   font-size: 11px; font-weight: 700; color: var(--text-secondary);
   text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px;
 }
 .node .task-title { font-size: 14px; font-weight: 600; line-height: 1.3; margin-bottom: 8px; }
 .node .task-meta { display: flex; gap: 10px; font-size: 11px; color: var(--text-secondary); }
-.node .status-badge { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+.node .worker-chip {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  background: #ede9fe; color: #7c3aed; padding: 2px 8px; border-radius: 999px; margin-top: 6px;
+}
+.node .claimed-chip {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 999px; margin-top: 4px; margin-left: 4px;
+}
+
+.status-badge { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
 .status-badge.pending { background: var(--pending); color: var(--pending-text); }
 .status-badge.ready { background: var(--ready); color: var(--ready-text); }
 .status-badge.blocked { background: var(--blocked); color: var(--blocked-text); }
 .status-badge.in-progress { background: var(--in-progress); color: var(--in-progress-text); }
 .status-badge.idle { background: var(--idle); color: var(--idle-text); }
 
-
-/* Worker 卡片 */
-.workers-section { padding: 0 0 20px 0; }
-.workers-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 0 24px; }
-.workers-title { font-size: 15px; font-weight: 700; }
-.workers-count { font-size: 12px; color: var(--text-secondary); margin-left: auto; }
-.workers-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 24px; }
-.worker-card {
-  background: var(--bg); border: 1.5px solid var(--border);
-  border-radius: 10px; padding: 14px 16px; min-width: 200px; max-width: 280px;
-  flex: 1 1 200px; cursor: pointer; transition: all 0.15s ease;
-  box-shadow: var(--card-shadow); user-select: none;
-}
-.worker-card:hover { box-shadow: var(--card-hover-shadow); transform: translateY(-1px); }
-.worker-card.domain { border-left: 3px solid #6366f1; }
-.worker-card.infra { border-left: 3px solid #94a3b8; }
-.worker-card .worker-id { font-size: 10px; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
-.worker-card .worker-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-.worker-card .worker-scope { font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px; }
-.worker-card .worker-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.worker-status { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.worker-status.idle { background: #dcfce7; color: #166534; }
-.worker-status.busy { background: #dbeafe; color: #1e40af; }
-.worker-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
-.worker-badge.domain { background: #ede9fe; color: #7c3aed; }
-.worker-badge.infra { background: #f1f5f9; color: #64748b; }
-.worker-history-count { font-size: 11px; color: var(--text-secondary); }
-.worker-current-task { font-size: 11px; color: var(--in-progress-text); background: var(--in-progress); padding: 2px 8px; border-radius: 999px; }
-
-.section-divider { height: 1px; background: var(--border); margin: 0 24px 20px 24px; }
-
-.no-tasks { text-align: center; padding: 40px 24px; color: var(--text-secondary); font-size: 14px; }
-
+/* === Detail Overlay === */
 .detail-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(15,23,42,0.2); z-index: 200;
@@ -276,42 +191,53 @@ body {
 }
 .detail-overlay.show { display: flex; }
 .detail-panel {
-  background: var(--bg); border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-  max-width: 580px; width: 90%; max-height: 80vh;
-  overflow-y: auto; padding: 28px; position: relative;
+  background: var(--bg); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  max-width: 580px; width: 90%; max-height: 80vh; overflow-y: auto; padding: 28px; position: relative;
 }
 .detail-panel .close-btn {
-  position: absolute; top: 14px; right: 16px;
-  width: 32px; height: 32px; border: none;
-  background: var(--layer-bg); border-radius: 50%;
-  font-size: 18px; cursor: pointer; display: flex;
-  align-items: center; justify-content: center;
+  position: absolute; top: 14px; right: 16px; width: 32px; height: 32px;
+  border: none; background: var(--layer-bg); border-radius: 50%;
+  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
   color: var(--text-secondary);
 }
-.detail-panel .close-btn:hover { background: var(--pending); }
 .detail-id { font-size: 12px; font-weight: 700; color: #6366f1; margin-bottom: 4px; }
 .detail-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
 .detail-section { margin-bottom: 18px; }
-.detail-section h4 {
-  font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;
-}
-.detail-section p { font-size: 14px; line-height: 1.7; }
+.detail-section h4 { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag {
-  font-size: 12px; background: var(--layer-bg);
-  color: var(--text-secondary); padding: 4px 10px;
-  border-radius: 6px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px; background: var(--layer-bg); color: var(--text-secondary);
+  padding: 4px 10px; border-radius: 6px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
 }
 
 .arrow-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1; }
 .arrow-svg path { stroke: var(--arrow); stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+
+.no-workers, .no-tasks { text-align: center; padding: 40px; color: var(--text-secondary); font-size: 14px; }
+.no-tasks { padding: 60px 24px; }
+.no-tasks .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+
+.loading-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 80px 24px; color: var(--text-secondary);
+}
+.loading-spinner {
+  width: 36px; height: 36px; border: 3px solid var(--border);
+  border-top-color: #6366f1; border-radius: 50%;
+  animation: spin 0.7s linear infinite; margin-bottom: 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-state { text-align: center; padding: 60px 24px; color: var(--text-secondary); }
+.error-state .retry-btn {
+  margin-top: 16px; padding: 8px 24px; background: #6366f1; color: #fff;
+  border: none; border-radius: 8px; cursor: pointer; font-size: 14px;
+}
 </style>
 </head>
 <body>
 
 <div class="stats-bar" id="statsBar">
-  <span class="stats-goal" id="statsGoal">🎯 加载中...</span>
+  <span class="stats-goal" id="statsGoal">加载中...</span>
   <span class="conn-status">
     <span class="conn-dot offline" id="connDot"></span>
     <span id="connText">连接中...</span>
@@ -324,33 +250,27 @@ body {
   <span class="theme-toggle">
     <button id="btnTheme" onclick="toggleTheme()" title="切换夜间模式">🌙</button>
   </span>
-  <span class="stat-item"><span id="lblTotal">总计</span>：<strong id="statTotal">-</strong></span>
-  <span class="stat-item"><span class="stat-dot idle"></span> <span id="lblCompleted">已完成</span>：<strong id="statCompleted">-</strong></span>
-  <span class="stat-item"><span class="stat-dot in-progress"></span> <span id="lblInProgress">进行中</span>：<strong id="statInProgress">-</strong></span>
-  <span class="stat-item"><span class="stat-dot ready"></span> <span id="lblReady">可执行</span>：<strong id="statReady">-</strong></span>
-  <span class="stat-item"><span class="stat-dot blocked"></span> <span id="lblBlocked">阻塞中</span>：<strong id="statBlocked">-</strong></span>
-  <span style="width:1px;height:20px;background:var(--border);margin:0 4px"></span>
-  <span class="stat-item"><span class="stat-dot idle"></span> <span id="lblWorkers">Workers</span>：<strong id="statWorkers">-</strong></span>
-  <span class="stat-item"><span class="stat-dot in-progress"></span> <span id="lblBusy">执行中</span>：<strong id="statBusy">-</strong></span>
+  <span class="stat-item"><span id="lblTotal">任务</span>: <strong id="statTotal">-</strong></span>
+  <span class="stat-item"><span class="stat-dot idle"></span> <span id="lblCompleted">已完成</span>: <strong id="statCompleted">-</strong></span>
+  <span class="stat-item"><span class="stat-dot in-progress"></span> <span id="lblInProgress">进行中</span>: <strong id="statInProgress">-</strong></span>
+  <span class="stat-item"><span class="stat-dot ready"></span> <span id="lblReady">可执行</span>: <strong id="statReady">-</strong></span>
+  <span class="stat-item"><span class="stat-dot blocked"></span> <span id="lblBlocked">阻塞中</span>: <strong id="statBlocked">-</strong></span>
+</div>
+
+<!-- Workers 面板：展示所有持久化领域 Worker -->
+<div class="workers-section" id="workersSection">
+  <h2><span id="lblWorkers">业务域 Worker</span> <span class="count" id="workersCount"></span></h2>
+  <div class="workers-grid" id="workersGrid"></div>
 </div>
 
 <div class="legend" id="legendBox"></div>
 
-
-<div class="workers-section" id="workersSection">
-  <div class="workers-header">
-    <span class="workers-title" id="lblWorkersTitle">👥 业务域 Worker</span>
-    <span class="workers-count" id="workersCount"></span>
-  </div>
-  <div class="workers-grid" id="workersGrid"></div>
-  <div class="section-divider"></div>
-</div>
-
+<!-- DAG 面板：展示当前待执行/执行中任务 -->
 <div class="dag-container" id="dagContainer">
   <svg class="arrow-svg" id="arrowSvg"><defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cbd5e1"/></marker></defs></svg>
   <div class="loading-state" id="loadingState">
     <div class="loading-spinner"></div>
-    <p>正在加载数据...</p>
+    <p>正在加载...</p>
   </div>
 </div>
 
@@ -359,19 +279,23 @@ body {
 </div>
 
 <script>
+// ============================================================
+// Configuration
+// ============================================================
 var DATA_URL = 'leader.json';
 var POLL_INTERVAL = 2000;
 var lastJson = '';
 var currentLang = 'zh';
 
+// ============================================================
+// i18n Labels
+// ============================================================
 var LABELS = {
   zh: {
     pending: '待执行', ready: '可执行', blocked: '阻塞中',
     in_progress: '执行中', idle: '已完成',
-    depsUnit: '个依赖', noDeps: '无依赖，可立即执行',
-    blockedDeps: '个依赖未完成',
+    depsUnit: '个依赖', noDeps: '无依赖，可立即执行', blockedDeps: '个依赖未完成',
     notAssigned: '尚未指派', claimedByNone: '无人认领',
-    layerPrefix: '第', layerSuffix: '层',
     detailLayer: '所属层级', detailDesc: '任务描述',
     detailDeps: '依赖任务', detailOutputs: '产出文件',
     detailWorker: '指派 Worker', detailClaimedBy: '认领人', detailClaimedAt: '认领时间',
@@ -380,22 +304,21 @@ var LABELS = {
     lastUpdate: '最后更新', loading: '正在加载任务数据...',
     loadError: '无法加载任务数据', retry: '重试',
     legend: '图例', clickTip: '点击节点查看详情 · 每 2s 自动刷新',
-    pageTitle: '任务依赖图',
+    pageTitle: '任务面板',
     errHint: '请通过 <code>http://localhost:8765/dag.html</code> 访问，勿用 file:// 打开',
-    statsTotal: '总计', statsCompleted: '已完成', statsInProgress: '进行中',
-    
-    workersTitle: '👥 业务域 Worker', workersCount: '个 Worker',
-    workerIdle: '空闲', workerBusy: '执行中', workerDomain: '域', workerInfra: '基础设施',
-    workerHistory: '已完成任务', workerCurrentTask: '当前任务', noTasks: '暂无待办任务',
-    statsPending: '待执行', statsReady: '可执行', statsBlocked: '阻塞中'
+    statsTotal: '任务', statsCompleted: '已完成', statsInProgress: '进行中',
+    statsPending: '待执行', statsReady: '可执行', statsBlocked: '阻塞中',
+    lblWorkers: '业务域 Worker', noWorkers: '暂无 Worker 定义',
+    noTasks: '暂无待办任务', domainWorker: '业务域', infraWorker: '基础设施',
+    fileCount: '个文件', historyCount: '条历史', ownerLabel: '负责人',
+    workerStatus: '状态', workerScope: '范畴', workerType: '类型',
+    workerFiles: '文件', workerHistory: '已完成任务'
   },
   en: {
     pending: 'Pending', ready: 'Ready', blocked: 'Blocked',
     in_progress: 'In Progress', idle: 'Completed',
-    depsUnit: 'deps', noDeps: 'No dependencies — ready',
-    blockedDeps: 'deps incomplete',
+    depsUnit: 'deps', noDeps: 'No dependencies — ready', blockedDeps: 'deps incomplete',
     notAssigned: 'Not assigned', claimedByNone: 'Unclaimed',
-    layerPrefix: 'L', layerSuffix: '',
     detailLayer: 'Layer', detailDesc: 'Description',
     detailDeps: 'Dependencies', detailOutputs: 'Output Files',
     detailWorker: 'Assigned Worker', detailClaimedBy: 'Claimed By', detailClaimedAt: 'Claimed At',
@@ -404,29 +327,31 @@ var LABELS = {
     lastUpdate: 'Last update', loading: 'Loading task data...',
     loadError: 'Failed to load task data', retry: 'Retry',
     legend: 'Legend', clickTip: 'Click node for details · Auto-refresh every 2s',
-    pageTitle: 'Task DAG',
+    pageTitle: 'Task Board',
     errHint: 'Open via <code>http://localhost:8765/dag.html</code>, not file://',
-    statsTotal: 'Total', statsCompleted: 'Completed', statsInProgress: 'In Progress',
-    
-    workersTitle: '👥 Domain Workers', workersCount: 'workers',
-    workerIdle: 'Idle', workerBusy: 'Busy', workerDomain: 'Domain', workerInfra: 'Infra',
-    workerHistory: 'History', workerCurrentTask: 'Current Task', noTasks: 'No pending tasks',
-    statsPending: 'Pending', statsReady: 'Ready', statsBlocked: 'Blocked'
+    statsTotal: 'Tasks', statsCompleted: 'Completed', statsInProgress: 'In Progress',
+    statsPending: 'Pending', statsReady: 'Ready', statsBlocked: 'Blocked',
+    lblWorkers: 'Domain Workers', noWorkers: 'No workers defined',
+    noTasks: 'No pending tasks', domainWorker: 'Domain', infraWorker: 'Infra',
+    fileCount: 'files', historyCount: 'tasks', ownerLabel: 'Owner',
+    workerStatus: 'Status', workerScope: 'Scope', workerType: 'Type',
+    workerFiles: 'Files', workerHistory: 'Task History'
   }
 };
 
 var LANG = LABELS.zh;
 
+// ============================================================
+// Theme
+// ============================================================
 function toggleTheme() {
   var html = document.documentElement;
   var btn = document.getElementById('btnTheme');
   if (html.getAttribute('data-theme') === 'dark') {
-    html.removeAttribute('data-theme');
-    btn.textContent = '🌙';
+    html.removeAttribute('data-theme'); btn.textContent = '🌙';
     localStorage.setItem('dag-theme', 'light');
   } else {
-    html.setAttribute('data-theme', 'dark');
-    btn.textContent = '☀️';
+    html.setAttribute('data-theme', 'dark'); btn.textContent = '☀️';
     localStorage.setItem('dag-theme', 'dark');
   }
 }
@@ -442,101 +367,276 @@ function initTheme() {
   }
 }
 
+// ============================================================
+// Language Switch
+// ============================================================
 function switchLang(lang) {
   currentLang = lang;
   LANG = LABELS[lang] || LABELS.zh;
   document.getElementById('btnZh').className = lang === 'zh' ? 'active' : '';
   document.getElementById('btnEn').className = lang === 'en' ? 'active' : '';
   document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
-  document.title = (lang === 'zh' ? '知迹伴学' : 'InsightTutor') + ' · ' + LANG.pageTitle;
+  document.title = 'Agent Company · ' + LANG.pageTitle;
   document.getElementById('lblTotal').textContent = LANG.statsTotal;
   document.getElementById('lblCompleted').textContent = LANG.statsCompleted;
   document.getElementById('lblInProgress').textContent = LANG.statsInProgress;
   document.getElementById('lblReady').textContent = LANG.statsReady;
   document.getElementById('lblBlocked').textContent = LANG.statsBlocked;
-  document.getElementById('lblWorkersTitle').textContent = LANG.workersTitle;
   if (window.__dagData) {
-    renderAll(window.__dagData);
     renderWorkers(window.__dagData);
+    renderAll(window.__dagData);
     updateStatsBar(window.__dagData);
     updateLegend();
   }
 }
 
-function updateLegend() {
-  document.getElementById('legendBox').innerHTML =
-    '<div style="font-weight:600;margin-bottom:6px;font-size:12px">' + LANG.legend + '</div>' +
-    '<div class="item"><span class="swatch blocked"></span> ' + LANG.blocked + '</div>' +
-    '<div class="item"><span class="swatch ready"></span> ' + LANG.ready + '</div>' +
-    '<div class="item"><span class="swatch in-progress"></span> ' + LANG.in_progress + '</div>' +
-    '<div class="item"><span class="swatch idle"></span> ' + LANG.idle + '</div>' +
-    '<div style="margin-top:4px;font-size:10px;color:var(--text-secondary)">' + LANG.clickTip + '</div>';
+// ============================================================
+// Data Fetching
+// ============================================================
+function fetchData() {
+  return fetch(DATA_URL, { cache: 'no-cache' }).then(function(r) { return r.json(); });
 }
 
+function fetchLang() {
+  return fetch('lang.json', { cache: 'no-cache' })
+    .then(function(r) { return r.json(); })
+    .then(function(cfg) { if (cfg.language && LABELS[cfg.language]) switchLang(cfg.language); })
+    .catch(function() {});
+}
 
+// ============================================================
+// Workers Rendering
+// ============================================================
 function renderWorkers(data) {
   var workers = data.workers || [];
   var grid = document.getElementById('workersGrid');
-  if (!grid) return;
+  document.getElementById('lblWorkers').textContent = LANG.lblWorkers;
+  document.getElementById('workersCount').textContent = '(' + workers.length + ')';
+
   if (workers.length === 0) {
-    document.getElementById('workersSection').style.display = 'none';
+    grid.innerHTML = '<div class="no-workers">' + LANG.noWorkers + '</div>';
     return;
   }
-  document.getElementById('workersSection').style.display = '';
-  
-  var idle = 0, busy = 0;
-  workers.forEach(function(w) { if (w.status === 'busy') busy++; else idle++; });
-  document.getElementById('workersCount').textContent = workers.length + ' ' + LANG.workersCount + '（' + LANG.workerIdle + ': ' + idle + ' / ' + LANG.workerBusy + ': ' + busy + '）';
-  
+
   var html = '';
   workers.forEach(function(w) {
-    var cls = w.domain ? 'domain' : 'infra';
-    var badge = w.domain ? LANG.workerDomain : LANG.workerInfra;
-    var statusCls = w.status === 'busy' ? 'busy' : 'idle';
-    var statusLabel = w.status === 'busy' ? LANG.workerBusy : LANG.workerIdle;
-    var scope = w.scope || '';
+    var badgeCls = w.domain ? 'domain' : 'infra';
+    var badgeText = w.domain ? LANG.domainWorker : LANG.infraWorker;
+    var fileCount = (w.files || []).length;
     var historyCount = (w.history || []).length;
-    var historyText = historyCount > 0 ? historyCount + ' ' + LANG.workerHistory : '';
-    var currentTaskText = '';
-    if (w.status === 'busy' && w.currentTask) {
-      currentTaskText = '<span class="worker-current-task">' + LANG.workerCurrentTask + ': ' + escapeHtml(w.currentTask) + '</span>';
-    }
-    html += '<div class="worker-card ' + cls + '" onclick="showWorkerDetail(\'' + escapeHtml(w.id) + '\')">';
-    html += '<div class="worker-id">' + escapeHtml(w.id) + '</div>';
-    html += '<div class="worker-name">' + escapeHtml(w.title || w.id) + ' <span class="worker-badge ' + cls + '">' + badge + '</span></div>';
-    html += '<div class="worker-scope">' + escapeHtml(scope) + '</div>';
+
+    html += '<div class="worker-card' + (w.status === 'busy' ? ' busy' : '') + '" onclick="showWorkerDetail(\'' + w.id + '\')">';
+    html += '<div class="worker-header">';
+    html += '<span class="worker-status-dot ' + (w.status === 'busy' ? 'busy' : 'idle') + '"></span>';
+    html += '<span class="worker-name">' + escapeHtml(w.title) + '</span>';
+    html += '<span class="worker-badge ' + badgeCls + '">' + badgeText + '</span>';
+    html += '</div>';
+    html += '<div class="worker-scope">' + escapeHtml(w.scope || '') + '</div>';
     html += '<div class="worker-meta">';
-    html += '<span class="worker-status ' + statusCls + '">' + statusLabel + '</span>';
-    if (historyText) html += '<span class="worker-history-count">' + historyText + '</span>';
-    html += currentTaskText;
-    html += '</div></div>';
+    html += '<span>' + LANG.fileCount + ': ' + fileCount + '</span>';
+    html += '<span>' + LANG.historyCount + ': ' + historyCount + '</span>';
+    if (w.currentTask) html += '<span>当前: ' + escapeHtml(w.currentTask) + '</span>';
+    html += '</div>';
+    if (w.owner) {
+      html += '<div class="worker-owner"><span class="owner-tag">' + LANG.ownerLabel + ': ' + escapeHtml(w.owner) + '</span></div>';
+    }
+    html += '</div>';
   });
   grid.innerHTML = html;
 }
 
-function updateStatsBar(data) {
-  var workers = data.workers || [];
-  var dag = data.dag || [];
-  var goal = data.goal || '';
-  document.getElementById('statsGoal').textContent = goal ? ('🎯 ' + goal) : ('🎯 ' + LANG.pageTitle);
-  var counts = { pending: 0, ready: 0, blocked: 0, in_progress: 0, idle: 0 };
-  dag.forEach(function(t) {
-    if (t.status === 'pending') {
-      if (areDepsSatisfied(t, data)) counts.ready++;
-      else counts.blocked++;
-    } else if (counts.hasOwnProperty(t.status)) {
-      counts[t.status]++;
-    }
-  });
-  document.getElementById('statTotal').textContent = dag.length;
-  document.getElementById('statCompleted').textContent = counts.idle;
-  document.getElementById('statInProgress').textContent = counts.in_progress;
-  document.getElementById('statReady').textContent = counts.ready;
-  document.getElementById('statBlocked').textContent = counts.blocked;
-  document.getElementById('statWorkers').textContent = workers.length;
-  document.getElementById('statBusy').textContent = workers.filter(function(w){return w.status==='busy';}).length;
+function showWorkerDetail(workerId) {
+  var data = window.__dagData;
+  if (!data) return;
+  var worker = null;
+  (data.workers || []).forEach(function(w) { if (w.id === workerId) worker = w; });
+  if (!worker) return;
+
+  var filesHtml = (worker.files || []).map(function(f) {
+    return '<span class="tag">' + escapeHtml(f) + '</span>';
+  }).join('');
+
+  var historyHtml = '';
+  if ((worker.history || []).length > 0) {
+    historyHtml = '<div class="detail-section"><h4>' + LANG.workerHistory + ' (' + worker.history.length + ')</h4>';
+    worker.history.forEach(function(h) {
+      historyHtml += '<div style="margin-bottom:8px;padding-left:8px;border-left:2px solid var(--border)">';
+      historyHtml += '<strong>' + escapeHtml(h.taskId) + ':</strong> ' + escapeHtml(h.title) + '<br>';
+      historyHtml += '<span style="font-size:11px;color:var(--text-secondary)">' + escapeHtml(h.description || '') + '</span>';
+      historyHtml += '</div>';
+    });
+    historyHtml += '</div>';
+  }
+
+  var statusText = worker.status === 'busy'
+    ? (worker.currentTask ? LANG.in_progress + ': ' + worker.currentTask : LANG.in_progress)
+    : LANG.idle;
+
+  document.getElementById('detailPanel').innerHTML =
+    '<button class="close-btn" onclick="hideDetail()">✕</button>' +
+    '<div class="detail-id">' + escapeHtml(worker.id) + '</div>' +
+    '<div class="detail-title">' + escapeHtml(worker.title) + '</div>' +
+    '<div class="detail-section"><h4>' + LANG.workerStatus + '</h4><p>' + statusText + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.workerScope + '</h4><p>' + escapeHtml(worker.scope || '') + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.workerType + '</h4><p>' + (worker.domain ? LANG.domainWorker : LANG.infraWorker) + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.ownerLabel + '</h4><p>' + escapeHtml(worker.owner || LANG.notAssigned) + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.workerFiles + ' (' + (worker.files || []).length + ')</h4><div class="tag-list">' + filesHtml + '</div></div>' +
+    historyHtml;
+
+  document.getElementById('detailOverlay').classList.add('show');
 }
 
+// ============================================================
+// DAG / Task Rendering
+// ============================================================
+var layerNames = {};
+
+function renderAll(data) {
+  var dag = data.dag || [];
+  var layers = data.architectureLayers || {};
+
+  var taskLayerMap = {};
+  var layerOrder = [];
+  Object.keys(layers).forEach(function(key) {
+    layerOrder.push(key);
+    (layers[key] || []).forEach(function(tid) { taskLayerMap[tid] = key; });
+  });
+  if (layerOrder.length === 0) {
+    layerOrder = ['default'];
+    dag.forEach(function(t) { taskLayerMap[t.taskId] = 'default'; });
+  }
+
+  layerNames = {};
+  var customLabels = data.layerLabels || {};
+  layerOrder.forEach(function(key) {
+    layerNames[key] = customLabels[key] || key.replace(/^L\d+_/, '');
+  });
+
+  var html = '';
+  if (dag.length === 0) {
+    html = '<div class="no-tasks"><div class="empty-icon">&#128203;</div><p>' + LANG.noTasks + '</p></div>';
+  }
+
+  layerOrder.forEach(function(layerKey, layerIdx) {
+    var tasks = dag.filter(function(t) { return (taskLayerMap[t.taskId] || 'default') === layerKey; });
+    if (tasks.length === 0) return;
+
+    var layerNum = currentLang === 'zh' ? ('第' + (layerIdx + 1) + '层') : ('L' + layerIdx);
+    html += '<div class="layer" data-layer="' + layerKey + '">';
+    html += '<div class="layer-header"><span class="layer-label">' + layerNum + '</span>';
+    html += '<span class="layer-name">' + (layerNames[layerKey] || layerKey) + '</span></div>';
+    html += '<div class="nodes-row">';
+
+    tasks.forEach(function(t) {
+      var depsArr = t.dependencies || [];
+      var blockedCount = t.status === 'pending' ? countBlockedDeps(t, data) : 0;
+      var allReady = t.status === 'pending' && blockedCount === 0;
+      var anyBlocked = t.status === 'pending' && blockedCount > 0;
+
+      var cls = t.status;
+      if (anyBlocked) cls += ' blocked'; else if (allReady) cls += ' ready';
+
+      var depText;
+      if (anyBlocked) depText = blockedCount + ' ' + LANG.blockedDeps;
+      else if (depsArr.length === 0) depText = LANG.noDeps;
+      else depText = depsArr.length + ' ' + LANG.depsUnit;
+
+      var statusLabel;
+      if (anyBlocked) statusLabel = LANG.blocked;
+      else if (allReady) statusLabel = LANG.ready;
+      else statusLabel = LANG[t.status];
+
+      var workerChip = t.assignedWorker
+        ? '<span class="worker-chip">' + escapeHtml(t.assignedWorker) + '</span>' : '';
+
+      var claimedChip = '';
+      if (t.claimedBy) {
+        var lab = escapeHtml(t.claimedBy);
+        var m = (t.claimedAt || '').match(/T(\d{2}:\d{2})/);
+        if (m) lab += ' ' + m[1];
+        claimedChip = '<span class="claimed-chip">' + lab + '</span>';
+      }
+
+      html += '<div class="node ' + cls + '" data-task-id="' + t.taskId + '" data-deps=\'' + JSON.stringify(depsArr) + '\' onclick="showTaskDetail(\'' + t.taskId + '\')">';
+      html += '<div class="task-id">' + t.taskId + '</div>';
+      html += '<div class="task-title">' + escapeHtml(t.title) + '</div>';
+      html += '<div class="task-meta"><span>' + depText + '</span>';
+      html += '<span class="status-badge ' + (anyBlocked ? 'blocked' : allReady ? 'ready' : t.status) + '">' + statusLabel + '</span></div>';
+      html += workerChip + claimedChip;
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+
+  document.getElementById('dagContainer').innerHTML =
+    '<svg class="arrow-svg" id="arrowSvg"><defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cbd5e1"/></marker></defs></svg>' + html;
+
+  setTimeout(drawArrows, 100);
+  window.__dagData = data;
+  window.__taskLayerMap = taskLayerMap;
+  window.__layerOrder = layerOrder;
+}
+
+function showTaskDetail(taskId) {
+  var data = window.__dagData;
+  if (!data) return;
+  var task = null;
+  (data.dag || []).forEach(function(t) { if (t.taskId === taskId) task = t; });
+  if (!task) return;
+
+  document.querySelectorAll('.node.active').forEach(function(n) { n.classList.remove('active'); });
+  var nodeEl = document.querySelector('[data-task-id="' + taskId + '"]');
+  if (nodeEl) nodeEl.classList.add('active');
+
+  var depsArr = task.dependencies || [];
+  var depTags = '';
+  if (depsArr.length > 0) {
+    (data.dag || []).forEach(function(other) {
+      if (depsArr.indexOf(other.taskId) !== -1)
+        depTags += '<span class="tag">' + other.taskId + ': ' + escapeHtml(other.title) + '</span>';
+    });
+  } else {
+    depTags = '<span style="color:var(--text-secondary);font-size:13px">' + LANG.noDeps + '</span>';
+  }
+
+  var outputTags = (task.outputFiles || []).map(function(f) {
+    return '<span class="tag">' + escapeHtml(f) + '</span>';
+  }).join('');
+
+  var layerKey = (window.__taskLayerMap || {})[taskId] || 'default';
+  var layerIdx = (window.__layerOrder || []).indexOf(layerKey);
+  var layerLabel = (currentLang === 'zh' ? '第' + (layerIdx + 1) + '层' : 'L' + layerIdx) + ' · ' + ((layerNames || {})[layerKey] || layerKey);
+
+  var statusLabel;
+  if (task.status === 'pending' && areDepsSatisfied(task, data)) statusLabel = LANG.ready;
+  else if (task.status === 'pending' && !areDepsSatisfied(task, data)) statusLabel = LANG.blocked;
+  else statusLabel = LANG[task.status] || task.status;
+
+  var claimedByInfo = '';
+  if (task.claimedBy) {
+    claimedByInfo = '<div class="detail-section"><h4>' + LANG.detailClaimedBy + '</h4><p>' + escapeHtml(task.claimedBy) + '</p></div>';
+    if (task.claimedAt)
+      claimedByInfo += '<div class="detail-section"><h4>' + LANG.detailClaimedAt + '</h4><p>' + escapeHtml(task.claimedAt) + '</p></div>';
+  }
+
+  document.getElementById('detailPanel').innerHTML =
+    '<button class="close-btn" onclick="hideDetail()">✕</button>' +
+    '<div class="detail-id">' + task.taskId + '</div>' +
+    '<div class="detail-title">' + escapeHtml(task.title) + '</div>' +
+    '<div class="detail-section"><h4>' + LANG.detailStatus + '</h4><p>' + statusLabel + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailLayer + '</h4><p>' + layerLabel + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailDesc + '</h4><p>' + (task.description || '') + '</p></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailDeps + '</h4><div class="tag-list">' + depTags + '</div></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailOutputs + '</h4><div class="tag-list">' + outputTags + '</div></div>' +
+    '<div class="detail-section"><h4>' + LANG.detailWorker + '</h4><p>' + (task.assignedWorker || LANG.notAssigned) + '</p></div>' +
+    claimedByInfo;
+
+  document.getElementById('detailOverlay').classList.add('show');
+}
+
+// ============================================================
+// Helpers
+// ============================================================
 function areDepsSatisfied(task, data) {
   var deps = task.dependencies || [];
   if (deps.length === 0) return true;
@@ -555,246 +655,42 @@ function countBlockedDeps(task, data) {
   return blocked;
 }
 
-function fetchData() {
-  return fetch(DATA_URL, { cache: 'no-cache' }).then(function(r) { return r.json(); });
-}
-
-function fetchLang() {
-  return fetch('lang.json', { cache: 'no-cache' })
-    .then(function(r) { return r.json(); })
-    .then(function(cfg) {
-      if (cfg.language && LABELS[cfg.language]) {
-        switchLang(cfg.language);
-      }
-    }).catch(function() {});
-}
-
-var layerNames = {};
-
-function renderAll(data) {
+function updateStatsBar(data) {
   var dag = data.dag || [];
-  var layers = data.architectureLayers || {};
-  var goal = data.goal || '';
-
-  var taskLayerMap = {};
-  var layerOrder = [];
-  Object.keys(layers).forEach(function(key) {
-    layerOrder.push(key);
-    (layers[key] || []).forEach(function(tid) { taskLayerMap[tid] = key; });
-  });
-
-  if (layerOrder.length === 0) {
-    layerOrder = ['default'];
-    dag.forEach(function(t) { taskLayerMap[t.taskId] = 'default'; });
-  }
-
-  layerNames = {};
-  layerOrder.forEach(function(key, idx) {
-    var parts = key.split('_');
-    var label = parts.length > 1 ? parts.slice(1).join(' ') : key;
-    if (currentLang === 'zh') {
-      label = translateLayerName(label);
+  document.getElementById('statsGoal').textContent = data.goal || ('Agent Company · ' + LANG.pageTitle);
+  var counts = { pending: 0, ready: 0, blocked: 0, in_progress: 0, idle: 0 };
+  dag.forEach(function(t) {
+    if (t.status === 'pending') {
+      if (areDepsSatisfied(t, data)) counts.ready++; else counts.blocked++;
+    } else if (counts.hasOwnProperty(t.status)) {
+      counts[t.status]++;
     }
-    layerNames[key] = label;
   });
-
-  var html = '';
-  if (dag.length === 0) {
-    html = '<div class="no-tasks">' + LANG.noTasks + '</div>';
-  } else {
-  layerOrder.forEach(function(layerKey, layerIdx) {
-    var tasks = dag.filter(function(t) {
-      return (taskLayerMap[t.taskId] || 'default') === layerKey;
-    });
-    if (tasks.length === 0) return;
-
-    var layerNum = currentLang === 'zh' ? ('第' + (layerIdx + 1) + '层') : ('L' + layerIdx);
-    html += '<div class="layer" data-layer="' + layerKey + '">';
-    html += '<div class="layer-header"><span class="layer-label">' + layerNum + '</span>';
-    html += '<span class="layer-name">' + (layerNames[layerKey] || layerKey) + '</span></div>';
-    html += '<div class="nodes-row">';
-
-    tasks.forEach(function(t) {
-      var depsArr = t.dependencies || [];
-      var depCount = depsArr.length;
-      var blockedCount = t.status === 'pending' ? countBlockedDeps(t, data) : 0;
-      var allReady = t.status === 'pending' && blockedCount === 0;
-      var anyBlocked = t.status === 'pending' && blockedCount > 0;
-
-      var cls = t.status;
-      if (anyBlocked) cls += ' blocked';
-      else if (allReady) cls += ' ready';
-
-      var depText;
-      if (t.status === 'pending' && anyBlocked) {
-        depText = blockedCount + ' ' + LANG.blockedDeps;
-      } else if (depCount === 0) {
-        depText = LANG.noDeps;
-      } else {
-        depText = depCount + ' ' + LANG.depsUnit;
-      }
-
-      var statusLabel;
-      if (anyBlocked) statusLabel = LANG.blocked;
-      else if (allReady) statusLabel = LANG.ready;
-      else statusLabel = LANG[t.status];
-
-      var workerChip = t.assignedWorker ? '<span class="worker-chip">' + escapeHtml(t.assignedWorker) + '</span>' : '';
-
-      // 认领人芯片
-      var claimedChip = '';
-      if (t.claimedBy) {
-        var claimedLabel = escapeHtml(t.claimedBy);
-        if (t.claimedAt) {
-          var claimedTime = t.claimedAt;
-          // 提取简短时间显示
-          var match = claimedTime.match(/T(\d{2}:\d{2})/);
-          if (match) claimedLabel += ' ' + match[1];
-        }
-        claimedChip = '<span class="claimed-chip">👤 ' + claimedLabel + '</span>';
-      }
-
-      html += '<div class="node ' + cls + '" data-task-id="' + t.taskId + '" data-deps=\'' + JSON.stringify(depsArr) + '\' onclick="showDetail(\'' + t.taskId + '\')">';
-      html += '<div class="task-id">' + t.taskId + '</div>';
-      html += '<div class="task-title">' + escapeHtml(t.title) + '</div>';
-      html += '<div class="task-meta"><span>' + depText + '</span>';
-      html += '<span class="status-badge ' + (anyBlocked ? 'blocked' : allReady ? 'ready' : t.status) + '">' + statusLabel + '</span></div>';
-      html += workerChip;
-      html += claimedChip;
-      html += '</div>';
-    });
-
-    html += '</div></div>';
-  }); }
-
-  document.getElementById('dagContainer').innerHTML =
-    '<svg class="arrow-svg" id="arrowSvg"><defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#cbd5e1"/></marker></defs></svg>' + html;
-
-  setTimeout(drawArrows, 100);
-  window.__dagData = data;
-  window.__taskLayerMap = taskLayerMap;
-  window.__layerOrder = layerOrder;
+  document.getElementById('statTotal').textContent = dag.length;
+  document.getElementById('statCompleted').textContent = counts.idle;
+  document.getElementById('statInProgress').textContent = counts.in_progress;
+  document.getElementById('statReady').textContent = counts.ready;
+  document.getElementById('statBlocked').textContent = counts.blocked;
 }
 
-function translateLayerName(name) {
-  var map = {
-    'Config': '配置层', 'Foundation': '基础层', 'Structure': '结构层',
-    'Features': '功能层', 'Integration': '集成层'
-  };
-  return map[name] || name;
-}
-
-
-function showWorkerDetail(workerId) {
-  var data = window.__dagData;
-  if (!data) return;
-  var worker = null;
-  (data.workers || []).forEach(function(w) { if (w.id === workerId) worker = w; });
-  if (!worker) return;
-
-  var history = worker.history || [];
-  var historyHtml = '';
-  if (history.length > 0) {
-    history.forEach(function(h) {
-      historyHtml += '<div style="margin-bottom:8px;padding:8px 12px;background:var(--layer-bg);border-radius:8px;font-size:13px">';
-      historyHtml += '<div style="font-weight:600;font-size:12px;color:#6366f1">' + escapeHtml(h.taskId) + '</div>';
-      historyHtml += '<div style="margin:2px 0">' + escapeHtml(h.title) + '</div>';
-      historyHtml += '<div style="font-size:11px;color:var(--text-secondary)">' + escapeHtml(h.description || '') + '</div>';
-      if (h.completedAt) historyHtml += '<div style="font-size:10px;color:var(--text-secondary);margin-top:4px">' + escapeHtml(h.completedAt) + '</div>';
-      historyHtml += '</div>';
-    });
-  } else {
-    historyHtml = '<span style="color:var(--text-secondary);font-size:13px">' + LANG.noDeps + '</span>';
-  }
-
-  var files = worker.files || [];
-  var filesHtml = files.map(function(f) { return '<span class="tag">' + escapeHtml(f) + '</span>'; }).join('');
-
-  document.getElementById('detailPanel').innerHTML =
-    '<button class="close-btn" onclick="hideDetail()">✕</button>' +
-    '<div class="detail-id">' + escapeHtml(worker.id) + '</div>' +
-    '<div class="detail-title">' + escapeHtml(worker.title || worker.id) + '</div>' +
-    '<div class="detail-section"><h4>' + LANG.detailStatus + '</h4><p>' + (worker.status === 'busy' ? LANG.workerBusy : LANG.workerIdle) + '</p></div>' +
-    '<div class="detail-section"><h4>' + LANG.detailDesc + '</h4><p>' + escapeHtml(worker.scope || '') + '</p></div>' +
-    '<div class="detail-section"><h4>' + LANG.workerHistory + ' (' + history.length + ')</h4>' + historyHtml + '</div>' +
-    '<div class="detail-section"><h4>' + LANG.detailOutputs + '</h4><div class="tag-list">' + filesHtml + '</div></div>';
-
-  document.getElementById('detailOverlay').classList.add('show');
-}
-
-function showDetail(taskId) {
-  var data = window.__dagData;
-  if (!data) return;
-  var task = null;
-  (data.dag || []).forEach(function(t) { if (t.taskId === taskId) task = t; });
-  if (!task) return;
-
-  document.querySelectorAll('.node.active').forEach(function(n) { n.classList.remove('active'); });
-  var nodeEl = document.querySelector('[data-task-id="' + taskId + '"]');
-  if (nodeEl) nodeEl.classList.add('active');
-
-  var depsArr = task.dependencies || [];
-  var depTags = '';
-  if (depsArr.length > 0) {
-    (data.dag || []).forEach(function(other) {
-      if (depsArr.indexOf(other.taskId) !== -1) {
-        depTags += '<span class="tag">' + other.taskId + '：' + escapeHtml(other.title) + '</span>';
-      }
-    });
-  } else {
-    depTags = '<span style="color:var(--text-secondary);font-size:13px">' + LANG.noDeps + '</span>';
-  }
-
-  var outputTags = (task.outputFiles || []).map(function(f) { return '<span class="tag">' + escapeHtml(f) + '</span>'; }).join('');
-
-  var layerKey = (window.__taskLayerMap || {})[taskId] || 'default';
-  var layerIdx = (window.__layerOrder || []).indexOf(layerKey);
-  var layerLabel = (currentLang === 'zh' ? '第' + (layerIdx + 1) + '层' : 'L' + layerIdx) + ' · ' + ((layerNames || {})[layerKey] || layerKey);
-
-  var statusLabel;
-  if (task.status === 'pending' && areDepsSatisfied(task, data)) statusLabel = LANG.ready;
-  else if (task.status === 'pending' && !areDepsSatisfied(task, data)) statusLabel = LANG.blocked;
-  else statusLabel = LANG[task.status] || task.status;
-
-  // 认领信息
-  var claimedByInfo = '';
-  if (task.claimedBy) {
-    claimedByInfo = '<div class="detail-section"><h4>' + LANG.detailClaimedBy + '</h4><p>' + escapeHtml(task.claimedBy) + '</p></div>';
-    if (task.claimedAt) {
-      claimedByInfo += '<div class="detail-section"><h4>' + LANG.detailClaimedAt + '</h4><p>' + escapeHtml(task.claimedAt) + '</p></div>';
-    }
-  }
-
-  document.getElementById('detailPanel').innerHTML =
-    '<button class="close-btn" onclick="hideDetail()">✕</button>' +
-    '<div class="detail-id">' + task.taskId + '</div>' +
-    '<div class="detail-title">' + escapeHtml(task.title) + '</div>' +
-    '<div class="detail-section"><h4>' + LANG.detailStatus + '</h4><p>' + statusLabel + '</p></div>' +
-    '<div class="detail-section"><h4>' + LANG.detailLayer + '</h4><p>' + layerLabel + '</p></div>' +
-    '<div class="detail-section"><h4>' + LANG.detailDesc + '</h4><p>' + (task.description || '') + '</p></div>' +
-    '<div class="detail-section"><h4>' + LANG.detailDeps + '（' + depsArr.length + '）</h4><div class="tag-list">' + depTags + '</div></div>' +
-    '<div class="detail-section"><h4>' + LANG.detailOutputs + '</h4><div class="tag-list">' + outputTags + '</div></div>' +
-    '<div class="detail-section"><h4>' + LANG.detailWorker + '</h4><p>' + (task.assignedWorker || LANG.notAssigned) + '</p></div>' +
-    claimedByInfo;
-
-  document.getElementById('detailOverlay').classList.add('show');
-}
-
-function hideDetail() {
-  document.querySelectorAll('.node.active').forEach(function(n) { n.classList.remove('active'); });
-  document.getElementById('detailOverlay').classList.remove('show');
+function updateLegend() {
+  document.getElementById('legendBox').innerHTML =
+    '<div style="font-weight:600;margin-bottom:6px;font-size:12px">' + LANG.legend + '</div>' +
+    '<div class="item"><span class="swatch blocked"></span> ' + LANG.blocked + '</div>' +
+    '<div class="item"><span class="swatch ready"></span> ' + LANG.ready + '</div>' +
+    '<div class="item"><span class="swatch in-progress"></span> ' + LANG.in_progress + '</div>' +
+    '<div class="item"><span class="swatch idle"></span> ' + LANG.idle + '</div>' +
+    '<div style="margin-top:4px;font-size:10px;color:var(--text-secondary)">' + LANG.clickTip + '</div>';
 }
 
 function drawArrows() {
   var svg = document.getElementById('arrowSvg');
   var container = document.getElementById('dagContainer');
   if (!svg || !container) return;
-  var containerRect = container.getBoundingClientRect();
-
+  var cr = container.getBoundingClientRect();
   svg.querySelectorAll('path').forEach(function(p) { p.remove(); });
   svg.setAttribute('width', container.scrollWidth);
   svg.setAttribute('height', container.scrollHeight);
-
   document.querySelectorAll('.node').forEach(function(targetNode) {
     var deps = JSON.parse(targetNode.dataset.deps || '[]');
     deps.forEach(function(depId) {
@@ -802,10 +698,10 @@ function drawArrows() {
       if (!sourceNode) return;
       var sr = sourceNode.getBoundingClientRect();
       var tr = targetNode.getBoundingClientRect();
-      var x1 = sr.left + sr.width / 2 - containerRect.left;
-      var y1 = sr.bottom - containerRect.top;
-      var x2 = tr.left + tr.width / 2 - containerRect.left;
-      var y2 = tr.top - containerRect.top;
+      var x1 = sr.left + sr.width / 2 - cr.left;
+      var y1 = sr.bottom - cr.top;
+      var x2 = tr.left + tr.width / 2 - cr.left;
+      var y2 = tr.top - cr.top;
       var midY = (y1 + y2) / 2;
       var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', 'M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + midY + ', ' + x2 + ' ' + midY + ', ' + x2 + ' ' + y2);
@@ -814,11 +710,18 @@ function drawArrows() {
   });
 }
 
+// ============================================================
+// Common
+// ============================================================
+function hideDetail() {
+  document.querySelectorAll('.node.active').forEach(function(n) { n.classList.remove('active'); });
+  document.getElementById('detailOverlay').classList.remove('show');
+}
+
 function setConnectionStatus(online) {
   var dot = document.getElementById('connDot');
-  var text = document.getElementById('connText');
   dot.className = 'conn-dot ' + (online ? 'online' : 'offline');
-  text.textContent = online ? LANG.online : LANG.offline;
+  document.getElementById('connText').textContent = online ? LANG.online : LANG.offline;
 }
 
 function updateTimestamp() {
@@ -829,13 +732,20 @@ function updateTimestamp() {
   document.getElementById('lastUpdate').textContent = LANG.lastUpdate + ': ' + ts;
 }
 
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ============================================================
+// Poll & Init
+// ============================================================
 function poll() {
   fetchData().then(function(data) {
     var currentJson = JSON.stringify(data);
     if (currentJson !== lastJson) {
       lastJson = currentJson;
-      renderAll(data);
       renderWorkers(data);
+      renderAll(data);
       updateStatsBar(data);
     }
     setConnectionStatus(true);
@@ -853,8 +763,8 @@ window.addEventListener('DOMContentLoaded', function() {
     return fetchData();
   }).then(function(data) {
     lastJson = JSON.stringify(data);
-    renderAll(data);
     renderWorkers(data);
+    renderAll(data);
     updateStatsBar(data);
     setConnectionStatus(true);
     updateTimestamp();
@@ -869,19 +779,14 @@ window.addEventListener('DOMContentLoaded', function() {
   setInterval(poll, POLL_INTERVAL);
 });
 
-var resizeTimer;
 window.addEventListener('resize', function() {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(drawArrows, 200);
+  clearTimeout(window.__resizeTimer);
+  window.__resizeTimer = setTimeout(drawArrows, 200);
 });
 
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') hideDetail();
 });
-
-function escapeHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
 </script>
 
 </body>

@@ -604,10 +604,22 @@ The Leader agent MUST produce a leader.json that includes:
 
 **Purpose:** Let the user visually verify the task decomposition and Worker overview before any code is written.
 
-The DAG page now has **two sections**:
+The `dag-template.html` renders a **two-panel dashboard** directly from `leader.json`:
 
-1. **Domain Workers** (top) — always visible. Shows all persistent Workers with status indicator, owned files, and history count.
-2. **Active Tasks** (bottom) — shows pending/in_progress tasks. Hidden when no tasks exist.
+| Panel | Data Source | When Visible |
+|-------|------------|--------------|
+| **Workers** (top) | `leader.json` → `workers[]` | Always — shows all persistent domain/infra Workers |
+| **Tasks** (bottom) | `leader.json` → `dag[]` | Only when tasks exist; shows layered DAG with dependency arrows |
+
+Both panels auto-refresh every 2s via polling `leader.json`. The template is **fully data-driven** — no project-specific content is hardcoded. The `goal` field from `leader.json` is displayed in the stats bar.
+
+**Template data contract — the `leader.json` MUST include:**
+
+- `goal` — project goal string (shown in stats bar header)
+- `workers[]` — array of Worker objects with: `id`, `title`, `scope`, `domain` (bool), `files[]`, `status` (idle/busy), `currentTask` (string|null), `owner` (string), `history[]`
+- `dag[]` — array of task objects with: `taskId`, `title`, `description`, `status`, `assignedWorker`, `dependencies[]`, `outputFiles[]`, `claimedBy`, `claimedAt`
+- `architectureLayers` — `{ "L0_Config": ["T1","T2"], ... }` mapping taskIds to layers
+- `layerLabels` — `{ "L0_Config": "配置层", ... }` human-readable layer names
 
 ### Step 1: Start Local File Server
 
@@ -615,39 +627,28 @@ The DAG page now has **two sections**:
 cd ".mycompany/sessions" && python3 -m http.server 8765
 ```
 
+If port 8765 is in use, kill the old process first.
+
 ### Step 2: Copy DAG HTML Template
+
+**Always copy from the skill directory** — do NOT edit dag.html by hand:
 
 ```bash
 cp "$SKILL_DIR/dag-template.html" ".mycompany/sessions/dag.html"
 ```
 
-**HTML Architecture:**
-```
-dag.html ──fetch──▶ localhost:8765/leader.json ──reads──▶ leader.json
-    │                                                       ▲
-    │  polls every 2s                                       │
-    └───────────────────────────────────────────────────────┘
-```
-
-**Workers Section:**
-- Card per Worker with: name, scope, domain badge, status (idle=green, busy=blue)
-- Shows `currentTask` if busy, history count if any
-- Click card → detail panel shows all history entries
-
-**Tasks Section:**
-- Same as before — layers, nodes, dependency arrows
-- Hidden when `dag[]` is empty (shows "暂无待办任务" / "No pending tasks")
+The template is a standalone HTML file. It fetches `leader.json` from the same directory via relative URL (`leader.json`), so it MUST be served over HTTP — `file://` will fail due to CORS.
 
 ### Step 3: Open in Browser
 
-Open via server URL, NOT `file://`:
+Open via server URL:
 ```
 http://localhost:8765/dag.html
 ```
 
 ### Step 4: Present to User
 
-Summarize: total Workers, busy/idle count, pending tasks. Ask for confirmation.
+Summarize: total Workers, domain vs infra breakdown, busy/idle count, pending tasks. Ask for confirmation.
 
 ---
 
