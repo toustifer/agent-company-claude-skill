@@ -24,6 +24,59 @@ Each Worker:
 - Is `idle` (available) or `busy` (executing a task)
 - The DAG (`dag[]`) only contains **pending** and **in_progress** tasks. Completed tasks are removed from DAG and appended to the Worker's `history[]`.
 
+## Leader Responsibilities (MANDATORY)
+
+Leader is the **conductor**, not a worker. Leader's job is plan, dispatch, review — and nothing else.
+
+### Leader MUST do
+- Analyze goals, decompose into tasks, assign to Workers
+- Update `leader.json` (dag[] + workers[] + overlapAnalysis)
+- Dispatch Workers via Agent tool with proper prompts
+- Review Worker output against acceptance criteria
+- Present results to the user
+
+### Leader MUST NOT do
+- **Write or edit any code directly** — ALL code changes go through Workers
+- Debug issues by reading code and fixing inline — file a task, assign to Worker
+- Answer technical questions by investigating code — dispatch Worker to research
+- "Just quickly fix this" — there is no quick fix, there is only Worker tasks
+- Skip the claim → push → dispatch → review cycle for any implementation
+
+### When User Asks for Anything That Touches Code
+
+```
+User: "Can you fix X?" / "Why does Y happen?" / "Look into Z"
+  │
+  ▼
+Leader: Create task → assign Worker → dispatch Agent → review result
+```
+
+If the user says "just do it yourself this time" — still dispatch a Worker. The discipline is the point.
+
+### Enforcement
+- If Leader writes code directly, the user should call it out as a protocol violation
+- After 3 violations in one session, Leader MUST stop and re-read this section aloud
+
+### Verification Rules (MANDATORY — learned from 2026-05-26 outage)
+
+**200 OK ≠ Data Persisted.** Frontend receiving HTTP 200 does not mean the database was actually updated. ORM frameworks (SQLAlchemy, etc.) can silently skip writes due to mutation tracking bugs, transaction rollback, or constraint violations that return success.
+
+**Every task that touches backend writes MUST include these acceptance criteria:**
+
+1. **DB verification**: After the Worker completes, the Reviewer (Leader) MUST query the database directly (Supabase MCP / SSH mysql) to confirm the written data exists. If the AC says "saveTemplate called successfully", the Reviewer checks `SELECT * FROM users WHERE habit_template contains the new data`.
+
+2. **ORM mutation tracking check**: For Python/FastAPI backends using SQLAlchemy, any task modifying JSONB/JSON columns MUST verify that `MutableDict.as_mutable()` is enabled OR `flag_modified()` is called before `db.commit()`.
+
+3. **Round-trip test**: After a write operation, read the same data back from the API and verify it matches what was sent. A 200 POST followed by a GET returning different data is a FAIL.
+
+4. **Test Worker MUST query DB**: worker-test's methodology requires at least one Supabase SQL query to verify every write operation actually persisted. Mock responses and HTTP status codes are not sufficient.
+
+**Task decomposition checklist (Leader's pre-dispatch gate):**
+- [ ] Does this task touch backend write APIs?
+- [ ] If yes, do the acceptance criteria include DB verification?
+- [ ] Is there a test task scheduled after implementation to verify persistence?
+- [ ] For JSONB/JSON columns: has ORM mutation tracking been checked?
+
 ## Standard Worker Types
 
 ### Domain Workers (`domain: true`)
@@ -489,9 +542,31 @@ After Leader writes leader.json:
 2. Verify a few random `files` paths exist on disk
 3. If issues found, ask Leader to fix
 
-**Step 0.5.5 — Proceed to DAG Visualization**
+**Step 0.5.5 — Generate Project CLAUDE.md**
 
-After leader.json is verified, proceed to **Phase 1.5** (Visual DAG Confirmation). The Workers overview section shows all domain Workers. The task section is empty.
+After leader.json is verified, write a `CLAUDE.md` at the project root. This file serves as Claude Code's system prompt — every future session will auto-load it and understand the project's Agent Company structure.
+
+The CLAUDE.md MUST contain these sections (using data from `leader.json`):
+
+1. **Project header**: `# Project: {goal}` + "Managed by agent-company multi-Agent team"
+2. **Architecture layers**: from `architectureLayers` + `layerLabels`
+3. **Domain Workers table**: `workers[]` where `domain: true` — columns: Worker, 领域, 负责人, 文件数
+4. **Infrastructure Workers table**: `workers[]` where `domain: false` — columns: Worker, 领域, 负责人
+5. **Key design decisions**: from `designDecisions[]`
+6. **Work protocol**: Leader doesn't write code; tasks dispatched to domain Workers; state in `.mycompany/`
+7. **Quick commands**: `/agent-company` usage reference
+
+Format rules:
+- Keep it under ~80 lines — this loads into every session's context
+- Use markdown tables for Worker lists (compact)
+- Worker `scope` should be truncated to 1 line in tables
+
+After writing, tell the user:
+> 项目根目录 CLAUDE.md 已生成，后续新会话进入项目时将自动加载 Agent Company 上下文。
+
+**Step 0.5.6 — Proceed to DAG Visualization**
+
+After CLAUDE.md is written, proceed to **Phase 1.5** (Visual DAG Confirmation). The Workers overview section shows all domain Workers. The task section is empty.
 
 Tell the user:
 > 项目基线已生成，共发现 X 个业务域 Worker。你可以在浏览器中查看完整的业务全景图。现在可以随时用 `/agent-company "你的需求"` 追加新任务，Leader 会自动分配到对应 Worker。
