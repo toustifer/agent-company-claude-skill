@@ -1,7 +1,7 @@
 ---
 name: agent-company
 description: Start a multi-Agent team with persistent domain Workers. Leader decomposes goals into tasks, assigns to domain Workers, Workers accumulate history. Use /agent-company "your goal" to start, or /agent-company resume to continue.
-argument-hint: "[goal | init | reset | fresh | review | update | upgrade | resume | status | lang zh/en]"
+argument-hint: "[goal | init | reset | fresh | review | reflect | update | upgrade | resume | status | lang zh/en]"
 ---
 # /agent-company
 
@@ -147,6 +147,7 @@ One per major page. Thin wrappers that own page-level files.
   - `fresh` — **architecture review & continuous improvement**. Leader reviews recent Worker activity (git log, completed history), audits domain coverage (are there code modules without a domain Worker?), and proposes new domain Workers or boundary adjustments. Does NOT wipe anything. Requires user confirmation.
   - `update` — **sync project with remote**. Runs `git pull` to get latest leader.json + code, then `git push` any local changes. Use before starting work to ensure you have the latest state.
   - `review [taskId]` — **re-review a task or show review dashboard**. Without args: shows all pending tasks and worker statuses. With `T5`: re-checks acceptance criteria against actual code, updates report.
+  - `reflect` — **pattern detection & playbook generation**. Leader scans recent Worker retrospectives and review records for repeated patterns (≥3 same issues). Generates playbook drafts for user approval. Also checks Worker experience.md files for gaps. Requires user confirmation for any playbook changes.
   - `upgrade` — **update the skill itself**. Runs `git pull` in `~/.claude/skills/agent-company/` to fetch the latest SKILL.md, agents, and dag-template. Use when the team releases new skill features.
   - `new "task goal"` — starts a **fresh session**, replacing existing DAG
   - `resume` — restores the last session and continues unfinished tasks
@@ -265,7 +266,7 @@ Reset re-analyzes the codebase from scratch (same analysis as init), but first *
    
    Wait for **confirm**. If denied, abort.
 1. **Collect Intelligence**:
-   - Read all Worker reports: `.mycompany/sessions/workers/*.json`
+   - Read all Worker reports: `.mycompany/workers/*/session.json`
    - Read recent git log: `git log --oneline -30`
    - Read current `leader.json` (full workers + dag + designDecisions)
    - Read module docs: `docs/modules/*.md`
@@ -333,7 +334,7 @@ Language is stored in `.mycompany/config.json`:
 **On first init** (Phase 0, step 1), default to `"zh"` if not specified.
 **On any `/agent-company` invocation**, check `.mycompany/config.json`. If `language` is set, use that language for all generated output.
 **To change language:** 
-- CLI: `/agent-company lang en` or `/agent-company lang zh` — updates both `.mycompany/config.json` and `.mycompany/sessions/lang.json`. The DAG HTML detects the change on next poll.
+- CLI: `/agent-company lang en` or `/agent-company lang zh` — updates `.mycompany/config.json`. The DAG HTML detects the change on next poll.
 - UI: The DAG page has **中文 / EN** toggle buttons in the stats bar. Click to switch all UI labels instantly without reload.
 
 ### Language Mapping
@@ -443,19 +444,52 @@ If `identity.json` doesn't exist or `userId` is not set, prompt the user to set 
 
 ## Phase 0 — Session Bootstrap
 
-1. Check if `.mycompany/` exists. If not:
-   - Create `.mycompany/config.json` with `{ "language": "zh" }`
-   - Create `.mycompany/identity.json` (empty, then prompt user for name)
-   - Create `.mycompany/memory/project.md`
-   - Create `.mycompany/memory/decisions.md`
-   - Create `.mycompany/tasks/inbox.md` and `.mycompany/tasks/completed.md`
-   - **If `identity.json` has no `userId`**: prompt user for name, write to `identity.json`
-   - **If user invoked `/agent-company init`**: proceed to **Phase 0.5 — Init Analysis**
-   - **If user provided a goal**: create empty `leader.json` skeleton with `workers: []` and `dag: []`, then proceed to Phase 1
-   - **If user invoked `/agent-company reset`**: refuse — use `init` instead
+1. Check if `.mycompany/` exists. If not, create the directory structure:
+
+```
+.mycompany/
+  config.json              # { "language": "zh" }
+  identity.json            # { "userId", "name" } — prompt user if empty
+  leader/
+    leader.json            # empty skeleton: { goal, dag[], workers[], ... }
+    playbook.md            # empty (Leader work standards — populated by reflect)
+    diary/
+  workers/                 # created on demand per Worker via initWorker()
+  memory/
+    project.md             # project technical facts (empty, append-only)
+    decisions.md           # architecture decisions (empty, append-only)
+  playbook/
+    worker.md              # cross-Worker execution standards (empty, populated by reflect)
+    reviewer.md            # Reviewer verification standards (empty, populated by reflect)
+  dag.html                 # copied from skill directory
+  tasks/
+    inbox.md               # pending tasks
+    completed.md           # completed task summaries
+```
+
+Directory creation details:
+- Create `.mycompany/config.json` with `{ "language": "zh" }`
+- Create `.mycompany/identity.json` (empty, then prompt user for name)
+- Create `.mycompany/memory/project.md`
+- Create `.mycompany/memory/decisions.md`
+- Create `.mycompany/playbook/worker.md`
+- Create `.mycompany/playbook/reviewer.md`
+- Create `.mycompany/leader/playbook.md`
+- Create `.mycompany/leader/diary/` (directory)
+- Create `.mycompany/tasks/inbox.md` and `.mycompany/tasks/completed.md`
+- **If `identity.json` has no `userId`**: prompt user for name, write to `identity.json`
+- **If user invoked `/agent-company init`**: proceed to **Phase 0.5 — Init Analysis**
+- **If user provided a goal**: create `leader/leader.json` skeleton with `workers: []` and `dag: []`, then proceed to Phase 1
+- **If user invoked `/agent-company reset`**: refuse — use `init` instead
+
 2. If `.mycompany/` already exists:
    - **Always check** identity.json exists with userId
-   - Handle commands: `reset`, `fresh`, `init` (refuse), `resume`, `status`, `update`, `review`, `upgrade`, `lang`
+   - Handle commands: `reset`, `fresh`, `init` (refuse), `resume`, `status`, `update`, `review`, `reflect`, `upgrade`, `lang`
+
+3. **New Worker bootstrap**: When creating a new Worker, run `initWorker(id)`:
+   - Create `.mycompany/workers/{id}/`
+   - Create `.mycompany/workers/{id}/diary/`
+   - Create `.mycompany/workers/{id}/experience.md` from template (see Worker Experience Template below)
 
 ### Phase 0.5 — Init Analysis (triggered by `/agent-company init`)
 
@@ -500,7 +534,7 @@ Read the project's documentation and source code to understand the current busin
 5. Read README.md for project context
 
 ## Output: leader.json
-Write to .mycompany/sessions/leader.json with:
+Write to .mycompany/leader/leader.json with:
 
 - sessionId: "init-001"
 - goal: extracted from project description
@@ -583,7 +617,7 @@ Same as init but with backup of old leader.json first.
 
 ```bash
 timestamp=$(date +%Y%m%d-%H%M%S)
-cp ".mycompany/sessions/leader.json" ".mycompany/sessions/leader.json.bak.${timestamp}"
+cp ".mycompany/leader/leader.json" ".mycompany/leader/leader.json.bak.${timestamp}"
 ```
 
 **Step 0.6.2 — Run Init Analysis**
@@ -601,7 +635,7 @@ Review Worker activity and propose domain coverage improvements.
 **Step 0.7.1 — Collect Intelligence**
 
 Gather all available data:
-- Read `.mycompany/sessions/workers/*.json`
+- Read `.mycompany/workers/*/session.json`
 - Run `git log --oneline -30`
 - Read current `leader.json`
 - Read `docs/modules/*.md`
@@ -617,6 +651,54 @@ Review, filter low-value tasks, verify no existing tasks modified, proceed to DA
 
 ---
 
+### Worker Experience Template
+
+When creating a new Worker, initialize `.mycompany/workers/{id}/experience.md` from this template:
+
+```markdown
+# Worker: {title} ({id})
+
+> 最后更新：{date} | 累计 task 数：0 | 重做率：0%
+
+---
+
+## 一、业务概述
+
+（待补充）{Worker scope from leader.json}
+
+---
+
+## 二、技术栈
+
+（待补充）
+
+---
+
+## 三、核心业务概念
+
+（待补充）
+
+---
+
+## 四、性能压力与注意事项
+
+### 压力来源
+
+（待补充）
+
+### 已知坑位
+
+（待补充）
+
+---
+
+## 五、经验演化记录
+
+（待首次 task 完成后补充）
+```
+
+---
+
 ## Phase 1 — Leader Decomposition
 
 ### Step 0 — Business Overlap Analysis (MANDATORY when leader.json exists)
@@ -624,7 +706,7 @@ Review, filter low-value tasks, verify no existing tasks modified, proceed to DA
 Before decomposing a new goal, Leader MUST:
 
 1. **Read existing module docs** — `docs/modules/*.md`
-2. **Read current Workers** — `.mycompany/sessions/leader.json` workers[] — what domains exist?
+2. **Read current Workers** — `.mycompany/leader/leader.json` workers[] — what domains exist?
 3. **Analyze overlap** — for each requirement in the new goal:
 
 ```
@@ -660,7 +742,7 @@ Output `overlapAnalysis` in leader.json:
 1. Dispatch **leader** agent with user's goal + overlap analysis context.
 2. Leader produces a DAG of subtasks, each assigned to a domain Worker.
 3. Each subtask includes: description, dependencies, assignedWorker (MUST be an existing or newly-created Worker), expected output.
-4. DAG is written to `.mycompany/sessions/leader.json`.
+4. DAG is written to `.mycompany/leader/leader.json`.
 
 **Leader Prompt Requirements:**
 
@@ -712,7 +794,7 @@ Both panels auto-refresh every 2s via polling `leader.json`. The template is **f
 ### Step 1: Start Local File Server
 
 ```bash
-cd ".mycompany/sessions" && python3 -m http.server 8765
+cd ".mycompany" && python3 -m http.server 8765
 ```
 
 If port 8765 is in use, kill the old process first.
@@ -722,10 +804,10 @@ If port 8765 is in use, kill the old process first.
 **Always copy from the skill directory** — do NOT edit dag.html by hand:
 
 ```bash
-cp "$SKILL_DIR/dag-template.html" ".mycompany/sessions/dag.html"
+cp "$SKILL_DIR/dag-template.html" ".mycompany/dag.html"
 ```
 
-The template is a standalone HTML file. It fetches `leader.json` from the same directory via relative URL (`leader.json`), so it MUST be served over HTTP — `file://` will fail due to CORS.
+The template is a standalone HTML file. It fetches `leader/leader.json` via relative URL, so it MUST be served over HTTP — `file://` will fail due to CORS.
 
 ### Step 3: Open in Browser
 
@@ -744,14 +826,13 @@ Summarize: total Workers, domain vs infra breakdown, busy/idle count, pending ta
 
 ### Worker Prompt Template
 
-Every Worker agent MUST receive a prompt with these sections:
+Every Worker agent MUST be dispatched with the `agents/worker.md` system prompt. The dispatch prompt MUST include:
 
 ```
 ## Task: {taskId} — {title}
 
-### Your Domain
-You are the **{workerId}** domain expert. Your domain scope: {worker.scope}
-Your previous work: {worker.history summary}
+### Your Identity
+You are the **{workerId}** domain expert. Your Worker ID is `{workerId}`.
 
 ### Context
 {2-3 sentences about the project and this task}
@@ -762,10 +843,6 @@ Your previous work: {worker.history summary}
 ### Acceptance Criteria (MUST satisfy ALL)
 {Numbered list}
 
-### Project Knowledge (READ FIRST)
-- Read your Worker entry in leader.json — review your history
-- Read docs/modules/ — especially modules your task depends on
-
 ### Files You Will Touch
 {outputFiles list}
 
@@ -774,9 +851,10 @@ Your previous work: {worker.history summary}
 - Do NOT modify files outside outputFiles unless necessary
 - Write production-quality code
 - Write NO comments unless the WHY is non-obvious
-- After completing all changes, write a report to .mycompany/sessions/workers/{workerId}.json
-  Include a `historyEntry` field for archiving to Worker history
+- Follow the workflow defined in your system prompt: Load → Execute → Self-verify → Write session → Update experience → Write diary
 ```
+
+The Worker's system prompt (`agents/worker.md`) already defines the detailed loading and reporting workflow. The dispatch prompt only provides task-specific context.
 
 ### Dispatch Rules (Git Sync Cycle)
 
@@ -811,15 +889,18 @@ The entire Phase 2 is a **loop**: pull → claim → commit+push (lock) → disp
 
 After each Worker finishes, the Reviewer MUST:
 
-1. **Check each acceptance criterion** against actual file changes
-2. **Read the changed files** — do not trust the Worker's summary alone
-3. **ALL pass** →
-   - Remove task from `dag[]`, append `historyEntry` to Worker's `history[]`
+1. Read the Worker's session report at `.mycompany/workers/{workerId}/session.json`
+2. **Read every changed file** — do not trust the Worker's summary alone
+3. **Check each acceptance criterion** against actual code changes
+4. **ALL pass** →
+   - Remove task from `dag[]`, append `historyEntry` to Worker's `history[]` in `leader/leader.json`
    - Set Worker `status: "idle"`, `currentTask: null`
    - Write review report to `.mycompany/tasks/completed.md`
+   - **Check Worker's retrospective**: Did the Worker report new learnings? If yes, verify `.mycompany/workers/{workerId}/experience.md` was updated. If the Worker missed updating it, add a note for Leader.
+   - **Check for repeated patterns**: Has this Worker or others failed the same criterion before? If ≥3 times, flag for `/agent-company reflect`.
    - **`git commit + git push`** — persist review result
    - Loop back to Phase 2 for next batch
-4. **Any FAIL** → Keep task in DAG with `status: "pending"`, add `_reviewNotes` with feedback, set Worker `status: "idle"`, `currentTask: null`, re-dispatch Worker
+5. **Any FAIL** → Keep task in DAG with `status: "pending"`, add `_reviewNotes` with feedback, set Worker `status: "idle"`, `currentTask: null`, re-dispatch Worker
 
 **No reusability assessment.** Workers are persistent domain agents — they don't get deleted after tasks.
 
@@ -836,9 +917,69 @@ After each Worker finishes, the Reviewer MUST:
 
 ---
 
-## Phase 3 — Aggregation
+## Phase 3 — Aggregation & Pattern Detection
 
-1. Leader reviews all completed tasks and updated Worker histories.
-2. Leader produces a final summary showing what was built and which Workers were affected.
-3. Display summary to user: tasks completed, Workers used, any new Workers created.
-4. The DAG page auto-shows the Workers overview (always visible) and empty task state.
+1. **Summarize results**: Leader presents what was built, which Workers were affected, any new Workers created.
+
+2. **Check Worker experience updates**: For each Worker that completed a task, verify `.mycompany/workers/{workerId}/experience.md` was updated with new learnings. If a Worker didn't update it but the retrospective shows new knowledge, remind them.
+
+3. **Pattern detection** (MANDATORY — runs automatically after every DAG completion):
+
+Leader scans the retrospective fields of the last 5-10 completed tasks across all Workers. Look for:
+
+| Signal | Threshold | Action |
+|--------|-----------|--------|
+| Same error type across ≥3 tasks | Pattern detected | Generate playbook draft for user approval |
+| Same Worker has ≥2 failures in last 5 tasks | Worker needs attention | Check their experience.md for gaps |
+| Same acceptance criterion failed ≥3 times | Criterion is unclear | Add to `leader/playbook.md` |
+| Worker retrospective.suggestsPattern is set | Worker detected something | Forward to playbook draft |
+
+4. **Write playbook draft** if patterns found:
+
+```
+[agent-company] 检测到重复模式：
+  来源：T5, T8, T12（3 次同类问题）
+  问题：{pattern description}
+  建议新增标准：{rule ID} "{rule title}"
+  写入位置：playbook/{leader|worker|reviewer}.md
+  是否采纳？[Y] 采纳  [N] 跳过  [E] 编辑
+```
+
+If user approves, write the rule to the appropriate playbook file.
+
+5. **Write Leader diary**: Leader writes to `.mycompany/leader/diary/{YYYY-MM-DD}.md`:
+
+```markdown
+# Leader Diary — YYYY-MM-DD
+
+## {timestamp} — 目标拆解："{goal}"
+
+**拆解决策**：{N} tasks, assigned to {workers}
+**理由**：{why this decomposition}
+
+## {timestamp} — 审查 {taskId}
+
+**审查结果**：PASS / FAIL
+**发现**：{notes}
+
+## 模式检测
+
+{patterns found, or "本次无新发现"}
+```
+
+6. Display final summary. The DAG page auto-shows Workers overview and empty task state.
+
+---
+
+## /agent-company reflect (Standalone Reflection)
+
+Triggered manually via `/agent-company reflect` or automatically at the end of every DAG completion. Leader does a deep scan:
+
+1. **Collect**: Read all Worker `experience.md` files + last 20 `session.json` retrospectives + `tasks/completed.md` review records.
+2. **Detect**: Apply pattern detection rules (same as Phase 3 step 3).
+3. **Generate**: Draft playbook entries for any detected patterns.
+4. **Audit**: Check each Worker's experience.md — are there empty sections? Missing known pitfalls that the review history suggests?
+5. **Present**: Show findings to user, ask for confirmation on any playbook changes.
+6. **Write diary**: Append to `.mycompany/leader/diary/{YYYY-MM-DD}.md`.
+
+Reflect never modifies code — it only reads history and proposes playbook/experience improvements.
