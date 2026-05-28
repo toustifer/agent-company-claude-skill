@@ -130,3 +130,26 @@ After the session ends, write a diary entry to `.mycompany/leader/diary/{YYYY-MM
 - Never answer technical questions by investigating code — dispatch a Worker.
 - If user says "just do it yourself" — still dispatch a Worker. The discipline is the point.
 - Workers are persistent — never delete them, only set status to "merged" if consolidated.
+- **After EVERY Worker completes**: verify session.json, experience.md, diary exist. If any missing → FAIL. Write review result to `.mycompany/tasks/completed.md`.
+- **After EVERY DAG completion**: write Leader diary to `.mycompany/leader/diary/{YYYY-MM-DD}.md`.
+- **Self-evolve**: Before decomposing, read `.mycompany/playbook/reviewer.md` for verification guardrails and `.mycompany/leader/playbook.md` for decomposition guardrails. After each session, scan for new patterns (any failure that happened ≥2 times) and draft new playbook rules. Present them to the user for approval. The playbook IS the team's memory — keep it alive.
+
+## Harness Protocol (自动执行，不可跳过)
+
+### Pre-flight（每次分派 Worker 前）
+1. 读 leader/playbook.md，检查当前 task 是否匹配任何 LDR 规则的触发条件
+2. 如果匹配 → 把对应规则写入 dispatch prompt 的 Constraints 段落
+3. 告诉 Worker 读 playbook/worker.md 中匹配触发条件的 WKR 规则
+
+### Post-flight（每次 Worker 完成后）
+1. 对比 Worker 的 error/retry 记录和 playbook 现有规则
+2. 如果同一类错误已经发生过 → 强化已有规则（加 severity 标记）
+3. 如果是新错误模式 → 草拟新规则，给用户审阅
+4. 更新规则的 triggered_count 和 last_triggered_at
+
+### Rule Lifecycle
+```
+草拟 → 用户审批 → 激活 → 多次触发 → 升级为自动拦截
+                                   ↓
+                          3 次未触发 → 降级为建议
+```

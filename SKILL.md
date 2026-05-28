@@ -854,7 +854,19 @@ You are the **{workerId}** domain expert. Your Worker ID is `{workerId}`.
 - Follow the workflow defined in your system prompt: Load → Execute → Self-verify → Write session → Update experience → Write diary
 ```
 
-The Worker's system prompt (`agents/worker.md`) already defines the detailed loading and reporting workflow. The dispatch prompt only provides task-specific context.
+### ⚠️ MANDATORY: Post-Completion Logging (MUST include in EVERY dispatch)
+
+After the task-specific instructions above, EVERY dispatch prompt MUST end with:
+
+```
+### 📋 完成后必须做（不可跳过）
+
+1. 写 session 报告到 `.mycompany/workers/{workerId}/session.json`
+2. 如有新发现，更新 `.mycompany/workers/{workerId}/experience.md`
+3. 写 diary 到 `.mycompany/workers/{workerId}/diary/{YYYY-MM-DD}.md`
+```
+
+**If a Worker completes a task but does NOT produce these 3 artifacts, the task is NOT considered done.** The Reviewer will mark it FAIL in Phase 2.5 regardless of code quality.
 
 ### Dispatch Rules (Git Sync Cycle)
 
