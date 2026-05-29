@@ -29,6 +29,52 @@ Do NOT start decomposing until you understand the affected Workers' domains.
 4. Assign each task to an existing Worker. Only create new Workers for genuinely new business domains.
 5. Write `.mycompany/leader/leader.json`.
 
+## 2.5 — Git Collaboration Protocol（自动执行，不可跳过）
+
+When multiple developers use agent-company on the same project, `leader.json` is the shared source of truth. **A successful `git push` is the distributed lock.** This protocol prevents two people from dispatching the same Worker to different tasks and ensures `leader.json` never has merge conflicts.
+
+### Pre-dispatch（每次分派 Worker 前 MUST 执行）
+
+```
+git pull → claim task → commit+push (lock) → dispatch Worker
+```
+
+**Step-by-step:**
+
+1. **`git pull`** — get latest `leader.json` from origin
+2. **Find a ready task** — `status: "pending"`, dependencies satisfied, no unexpired claim
+3. **Claim the task** — write to `leader.json`:
+   ```json
+   { "taskId": "T5", "claimedBy": "stifer", "claimedAt": "2026-05-29T15:30:00+08:00" }
+   ```
+   Read `identity.json` for your `userId`. If missing, create it:
+   ```json
+   { "userId": "your-git-username", "name": "你的名字" }
+   ```
+4. **`git add leader.json && git commit -m "claim T5" && git push`** — lock acquisition
+5. **If push fails** — someone else pushed first → `git pull` → their claim is now in `leader.json` → pick another task → retry claim+push
+6. **If push succeeds** — lock acquired → set Worker `status: "busy"`, `currentTask: "T5"` in `leader.json` → dispatch Worker
+
+### Lock Expiry
+
+A claim older than **30 minutes** with status still `pending` is considered expired. Other users may overwrite it. The `claimedAt` field enables the DAG HTML to show "claimed X min ago" and flag stale claims.
+
+### Post-completion（Worker 完成后 MUST 执行）
+
+After Phase 2.5 review passes:
+1. Remove task from `dag[]`, append to Worker's `history[]`
+2. Set Worker `status: "idle"`, `currentTask: null`
+3. Write review report to `.mycompany/tasks/completed.md`
+4. **`git add leader.json tasks/completed.md && git commit -m "complete T5: {title}" && git push`** — persist review + free the Worker
+
+### Per-user Identity
+
+Each developer has `.mycompany/identity.json` (gitignored, never committed):
+```json
+{ "userId": "stifer", "name": "小明" }
+```
+Leader reads this file to set `claimedBy`. If `identity.json` doesn't exist or `userId` is empty, prompt the user to set it.
+
 **Task Schema**:
 ```json
 {
@@ -132,20 +178,24 @@ After the session ends, write a diary entry to `.mycompany/leader/diary/{YYYY-MM
 - Workers are persistent — never delete them, only set status to "merged" if consolidated.
 - **After EVERY Worker completes**: verify session.json, experience.md, diary exist. If any missing → FAIL. Write review result to `.mycompany/tasks/completed.md`.
 - **After EVERY DAG completion**: write Leader diary to `.mycompany/leader/diary/{YYYY-MM-DD}.md`.
+- **Git sync IS the lock**: Before dispatching ANY Worker, execute the full Git Collaboration Protocol (section 2.5). Before claiming any task, `git pull`. After any leader.json change, `git commit + git push`. Skip this and you risk two developers dispatching the same Worker.
+- **identity.json is required**: Check `.mycompany/identity.json` exists with a valid `userId`. If not, prompt user to set it — do NOT proceed without identity.
 - **Self-evolve**: Before decomposing, read `.mycompany/playbook/reviewer.md` for verification guardrails and `.mycompany/leader/playbook.md` for decomposition guardrails. After each session, scan for new patterns (any failure that happened ≥2 times) and draft new playbook rules. Present them to the user for approval. The playbook IS the team's memory — keep it alive.
 
 ## Harness Protocol (自动执行，不可跳过)
 
 ### Pre-flight（每次分派 Worker 前）
-1. 读 leader/playbook.md，检查当前 task 是否匹配任何 LDR 规则的触发条件
-2. 如果匹配 → 把对应规则写入 dispatch prompt 的 Constraints 段落
-3. 告诉 Worker 读 playbook/worker.md 中匹配触发条件的 WKR 规则
+1. **Git sync**: `git pull` → check for unclaimed tasks → claim task → `git commit + git push` (see section 2.5 for full protocol)
+2. 读 leader/playbook.md，检查当前 task 是否匹配任何 LDR 规则的触发条件
+3. 如果匹配 → 把对应规则写入 dispatch prompt 的 Constraints 段落
+4. 告诉 Worker 读 playbook/worker.md 中匹配触发条件的 WKR 规则
 
 ### Post-flight（每次 Worker 完成后）
 1. 对比 Worker 的 error/retry 记录和 playbook 现有规则
 2. 如果同一类错误已经发生过 → 强化已有规则（加 severity 标记）
 3. 如果是新错误模式 → 草拟新规则，给用户审阅
 4. 更新规则的 triggered_count 和 last_triggered_at
+5. **Git sync**: 更新 leader.json（移除 task、添加 history）→ `git commit + git push`（见 section 2.5）
 
 ### Rule Lifecycle
 ```
