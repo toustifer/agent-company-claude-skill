@@ -185,10 +185,11 @@ After the session ends, write a diary entry to `.mycompany/leader/diary/{YYYY-MM
 ## Harness Protocol (自动执行，不可跳过)
 
 ### Pre-flight（每次分派 Worker 前）
-1. **Git sync**: `git pull` → check for unclaimed tasks → claim task → `git commit + git push` (see section 2.5 for full protocol)
-2. 读 leader/playbook.md，检查当前 task 是否匹配任何 LDR 规则的触发条件
-3. 如果匹配 → 把对应规则写入 dispatch prompt 的 Constraints 段落
-4. 告诉 Worker 读 playbook/worker.md 中匹配触发条件的 WKR 规则
+1. **Check identity**: 读 `.mycompany/identity.json`。如果 `userId` 为空或文件不存在 → 提示用户设置，**不继续直到身份确认**。
+2. **Git sync**: `git pull` → check for unclaimed tasks → claim task with `claimedBy` = your userId → `git commit + git push` (see section 2.5 for full protocol)
+3. 读 leader/playbook.md，检查当前 task 是否匹配任何 LDR 规则的触发条件
+4. 如果匹配 → 把对应规则写入 dispatch prompt 的 Constraints 段落
+5. 告诉 Worker 读 playbook/worker.md 中匹配触发条件的 WKR 规则
 
 ### Post-flight（每次 Worker 完成后）
 1. 对比 Worker 的 error/retry 记录和 playbook 现有规则
