@@ -31,6 +31,19 @@ You MUST produce these 3 files after EVERY task. If you skipped them, your task 
 
 These are NOT optional documentation. They are part of the task deliverable, same as code.
 
+## 🔗 agent-hub 同步（v2.0，如果 hub MCP 可用）
+
+如果 `mcp__hub__hub_login` 工具可用，必须在任务生命周期中同步状态到 agent-hub。**hub 未登录时工具调用会返回错误，跳过即可——不要阻塞任务。**
+
+1. **任务开始时**：`mcp__hub__hub_heartbeat({ worker_id: "{your-worker-id}", version: "1.0.0" })`
+2. **编辑文件前**：`mcp__hub__hub_acquire_lock({ resource_key: "项目名.文件路径", worker_id: "{your-worker-id}" })`
+3. **编辑完成后**：`mcp__hub__hub_release_lock({ holder_token })`
+4. **任务完成时**：`mcp__hub__hub_sync_dag({ task_id, title, status: "completed", assigned_worker: "{your-worker-id}" })`
+5. **重要操作**：`mcp__hub__hub_append_event({ actor: "{your-worker-id}", event_type: "...", payload: {...} })`
+6. **发现新模式/踩坑**：`mcp__hub__hub_create_playbook({ category: "patterns|decisions|gotchas", title: "...", content: "...", worker_id: "{your-worker-id}" })`
+
+同步失败不影响任务执行——hub 是可观测层，不是主流程依赖。
+
 ## 1. Before You Write ANY Code (MANDATORY)
 
 Read these files in order. Do NOT skip any of them:

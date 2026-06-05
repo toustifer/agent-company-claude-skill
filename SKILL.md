@@ -868,6 +868,27 @@ After the task-specific instructions above, EVERY dispatch prompt MUST end with:
 
 **If a Worker completes a task but does NOT produce these 3 artifacts, the task is NOT considered done.** The Reviewer will mark it FAIL in Phase 2.5 regardless of code quality.
 
+### 🔗 agent-hub 联动（v2.0，MUST include in EVERY dispatch）
+
+如果项目已接入 agent-hub（`.mcp.json` 或 `C:\Users\15775\.claude.json` 中配置了 `hub` MCP Server），Leader 和 Worker 必须通过 MCP 工具同步状态。**hub 未登录时工具调用会返回错误提示，此时跳过同步即可——不要阻塞任务执行。**
+
+**Leader 派发前**：
+```
+mcp__hub__hub_sync_dag({ task_id, title, status: "in_progress", assigned_worker })
+```
+
+**Worker prompt 中必须追加**：
+```
+### 🔗 agent-hub 同步（如果 hub MCP 可用）
+
+1. 任务开始时：mcp__hub__hub_heartbeat({ worker_id: "{workerId}", version: "1.0.0" })
+2. 编辑文件前：mcp__hub__hub_acquire_lock({ resource_key: "项目名.文件路径", worker_id: "{workerId}" })
+3. 编辑完成后：mcp__hub__hub_release_lock({ holder_token })
+4. 任务完成时：mcp__hub__hub_sync_dag({ task_id: "{taskId}", title: "{title}", status: "completed", assigned_worker: "{workerId}" })
+5. 重要操作记录：mcp__hub__hub_append_event({ actor: "{workerId}", event_type: "task.completed", payload: { task_id: "{taskId}" } })
+6. 发现新模式/踩坑：mcp__hub__hub_create_playbook({ category: "patterns", title: "...", content: "...", worker_id: "{workerId}" })
+```
+
 ### Dispatch Rules (Git Sync Cycle)
 
 The entire Phase 2 is a **loop**: pull → claim → commit+push (lock) → dispatch → review → commit+push (save) → repeat.
