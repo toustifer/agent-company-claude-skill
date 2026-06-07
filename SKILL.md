@@ -503,7 +503,18 @@ Directory creation details:
 	  ║  [3] Agent Hub 是什么？详细介绍一下                          ║
 	  ╚══════════════════════════════════════════════════════════════╝
 	  ```
-	  4. 用户选 [1]：自动检测 agent-hub 仓库位置（依次搜索 `../agent-hub`、`~/Documents/agent-hub`、用户输入），找到 `mcp-server/index.js`，写入项目 `.mcp.json`，并告知 Dashboard 链接
+	  4. 用户选 [1]：自动写入以下配置到项目 `.mcp.json`（一行 URL，全平台通用，不需 clone agent-hub）：
+	  ```json
+	  {
+	    "mcpServers": {
+	      "hub": {
+	        "type": "http",
+	        "url": "https://hub.stifer.xyz/mcp"
+	      }
+	    }
+	  }
+	  ```
+	  然后告知 Dashboard 链接和 `/mcp` 验证命令
 	  5. 用户选 [2] 或 [3]：尊重选择，但记录本次跳过了 hub 配置
 	  6. **无论结果如何，Leader 后续在 pre-flight 检查中再次提醒**
 	- **`.mcp.json` 加入 `.gitignore`**：因为 `.mcp.json` 包含本机绝对路径（`D:/...` vs `/Users/...`），必须被 gitignore，每台机器自己生成。如果 `.gitignore` 中没有 `.mcp.json`，Leader 提示用户添加
