@@ -471,13 +471,12 @@ If `identity.json` doesn't exist or `userId` is not set, prompt the user to set 
 ```
 
 Directory creation details:
-- **生成项目唯一 business_code（MANDATORY）**：
-	  1. 从项目目录名提取一个候选 code：`{dirname}`（如 `siruoning`）
-	  2. 如果 hub MCP 已配置 → 调用 `mcp__hub__hub_create_playbook` 或其他 hub API 测试连通性
-	  3. 创建 hub business：调用 hub API `POST /v1/hub/businesses`（`{ code: "siruoning", name: "项目名称" }`）
-	  4. 如果返回 409 冲突 → 追加 4 位随机后缀：`siruoning-a3f8`，重试直到成功
-	  5. 如果 hub 未配置 → 用 `{username}-{dirname}-{4位随机}` 格式（如 `stifer-siruoning-a3f8`），写入 config.json
-	  6. 写入 `.mycompany/config.json`：`{ "language": "zh", "business_code": "siruoning-a3f8" }`
+- **生成项目唯一 business_code（MANDATORY — 一次调用，无需重试）**：
+	  1. 如果 hub MCP 已配置 → 调用 `POST /v1/hub/businesses/generate-code`（`{ "name": "项目名称" }`）
+	     → 返回 `{ "business_code": "siruoning" }` 或 `{ "business_code": "siruoning-a3f8" }`
+	     → 后端保证不重复，前端显示只展示 name，不展示 code 后缀
+	  2. 如果 hub 未配置 → 用 `{dirname}-{4位随机}` 格式（如 `siruoning-a3f8`）
+	  3. 写入 `.mycompany/config.json`：`{ "language": "zh", "business_code": "siruoning-a3f8" }`
 - Create `.mycompany/identity.json` (empty, then prompt user for name)
 - Create `.mycompany/memory/project.md`
 - Create `.mycompany/memory/decisions.md`
