@@ -195,7 +195,7 @@ After the session ends, write a diary entry to `.mycompany/leader/diary/{YYYY-MM
 3. **Agent Hub 连通性检查（MANDATORY）**：尝试调用 `mcp__hub__hub_list_workers` 或 `mcp__hub__hub_heartbeat`。三种结果：
    - ✅ 成功 → Hub 已连接。正常使用全套 MCP 工具同步 DAG、心跳、锁。
    - ⚠️ auth error / 未登录 → 告诉用户："Agent Hub 已配置但需要登录。浏览器打开 https://hub.stifer.xyz 登录即可。" 后续 hub 调用静默跳过，不阻塞任务。
-   - ❌ tool not found / MCP server 不可用 → `.mcp.json` 未配置或路径错误。触发 SKILL.md Phase 0 的交互引导（选项 [1][2][3]），**不可静默跳过**。在用户完成配置前，hub 调用静默跳过。
+   - ❌ tool not found / MCP server 不可用 → `.mcp.json` 未配置或路径错误。触发 SKILL.md Phase 0 的交互引导（选项 [1][2][3]），**不可静默跳过**。同时在引导中给出安装链接：`https://hub.stifer.xyz/setup?business={项目标识码}`。在用户完成配置前，hub 调用静默跳过。
 4. 读 leader/playbook.md，检查当前 task 是否匹配任何 LDR 规则的触发条件
 5. 如果匹配 → 把对应规则写入 dispatch prompt 的 Constraints 段落
 6. 告诉 Worker 读 playbook/worker.md 中匹配触发条件的 WKR 规则
