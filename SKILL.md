@@ -148,7 +148,7 @@ One per major page. Thin wrappers that own page-level files.
   - `update` — **sync project with remote**. Runs `git pull` to get latest leader.json + code, then `git push` any local changes. Use before starting work to ensure you have the latest state.
   - `review [taskId]` — **re-review a task or show review dashboard**. Without args: shows all pending tasks and worker statuses. With `T5`: re-checks acceptance criteria against actual code, updates report.
   - `reflect` — **pattern detection & playbook generation**. Leader scans recent Worker retrospectives and review records for repeated patterns (≥3 same issues). Generates playbook drafts for user approval. Also checks Worker experience.md files for gaps. Requires user confirmation for any playbook changes.
-  - `upgrade` — **update the skill itself**. Runs `git pull` in `~/.claude/skills/agent-company/` to fetch the latest SKILL.md, agents, and dag-template. Use when the team releases new skill features.
+  - `upgrade` — **update the skill itself**. Runs `git pull` in `~/.claude/skills/agent-company/` to fetch the latest SKILL.md and agents. Use when the team releases new skill features.
   - `new "task goal"` — starts a **fresh session**, replacing existing DAG
   - `resume` — restores the last session and continues unfinished tasks
   - `status` — shows current session progress without starting work
@@ -455,13 +455,16 @@ If `identity.json` doesn't exist or `userId` is not set, prompt the user to set 
     playbook.md            # empty (Leader work standards — populated by reflect)
     diary/
   workers/                 # created on demand per Worker via initWorker()
+  scripts/
+    validate.js            # leader.json schema & integrity validator
+  templates/
+    handbook.json          # Worker domain handbook template
   memory/
     project.md             # project technical facts (empty, append-only)
     decisions.md           # architecture decisions (empty, append-only)
   playbook/
     worker.md              # cross-Worker execution standards (empty, populated by reflect)
     reviewer.md            # Reviewer verification standards (empty, populated by reflect)
-  dag.html                 # copied from skill directory
   tasks/
     inbox.md               # pending tasks
     completed.md           # completed task summaries
@@ -477,6 +480,33 @@ Directory creation details:
 - Create `.mycompany/leader/playbook.md`
 - Create `.mycompany/leader/diary/` (directory)
 - Create `.mycompany/tasks/inbox.md` and `.mycompany/tasks/completed.md`
+- Create `.mycompany/templates/` directory
+- Create `.mycompany/scripts/` directory
+- Copy `validate.js` from skill directory to `.mycompany/scripts/validate.js`
+- **Agent Hub 连接引导（MANDATORY — 必须交互，不允许静默跳过）**：
+	  1. 检查 `~/.claude.json`（全局）和项目 `.mcp.json`（如果存在）中是否有 `mcpServers.hub` 配置
+	  2. **如果已配置** → 若项目 `.mcp.json` 不存在，从全局配置复制一份；若已存在但路径不匹配当前机器（跨机器共享），自动修正路径
+	  3. **如果未配置** → 必须向用户展示以下引导，**不可静默跳过**：
+	  ```
+	  ╔══════════════════════════════════════════════════════════════╗
+	  ║  📡 Agent Hub 未连接                                         ║
+	  ║                                                              ║
+	  ║  Agent Hub 是多机器协作面板（hub.stifer.xyz），可以：        ║
+	  ║  • 看实时任务进度（DAG 面板）                                ║
+	  ║  • 跨机器文件锁（避免 Windows ↔ Mac 同时编辑冲突）           ║
+	  ║  • Worker 心跳监控 + 经验库搜索                              ║
+	  ║                                                              ║
+	  ║  需要我帮你配置吗？                                          ║
+	  ║  [1] 是，帮我自动配置（需要 agent-hub 仓库在本地）           ║
+	  ║  [2] 先跳过，我稍后自己配                                    ║
+	  ║  [3] Agent Hub 是什么？详细介绍一下                          ║
+	  ╚══════════════════════════════════════════════════════════════╝
+	  ```
+	  4. 用户选 [1]：自动检测 agent-hub 仓库位置（依次搜索 `../agent-hub`、`~/Documents/agent-hub`、用户输入），找到 `mcp-server/index.js`，写入项目 `.mcp.json`，并告知 Dashboard 链接
+	  5. 用户选 [2] 或 [3]：尊重选择，但记录本次跳过了 hub 配置
+	  6. **无论结果如何，Leader 后续在 pre-flight 检查中再次提醒**
+	- **`.mcp.json` 加入 `.gitignore`**：因为 `.mcp.json` 包含本机绝对路径（`D:/...` vs `/Users/...`），必须被 gitignore，每台机器自己生成。如果 `.gitignore` 中没有 `.mcp.json`，Leader 提示用户添加
+- Write handbook.json template to `.mycompany/templates/handbook.json`
 - **If `identity.json` has no `userId`**: prompt user for name, write to `identity.json`
 - **If user invoked `/agent-company init`**: proceed to **Phase 0.5 — Init Analysis**
 - **If user provided a goal**: create `leader/leader.json` skeleton with `workers: []` and `dag: []`, then proceed to Phase 1
@@ -489,7 +519,8 @@ Directory creation details:
 3. **New Worker bootstrap**: When creating a new Worker, run `initWorker(id)`:
    - Create `.mycompany/workers/{id}/`
    - Create `.mycompany/workers/{id}/diary/`
-   - Create `.mycompany/workers/{id}/experience.md` from template (see Worker Experience Template below)
+   - Create `.mycompany/workers/{id}/handbook.json` from template (see template at `.mycompany/templates/handbook.json`)
+   - Create `.mycompany/workers/{id}/experience.json` (empty arrays, ready for first task)
 
 ### Phase 0.5 — Init Analysis (triggered by `/agent-company init`)
 
@@ -562,9 +593,24 @@ Write to .mycompany/leader/leader.json with:
 ## Infrastructure Workers
 For modules that don't belong to a specific business domain (utils/, config/, components/), create Workers with domain: false.
 
+## Output: handbook.json per Worker
+For EACH worker, also write `.mycompany/workers/{worker-id}/handbook.json`. This is the domain operation manual — not just a list of files, but a complete picture of what this domain does.
+
+Template at `.mycompany/templates/handbook.json`. Key sections:
+- `domain`: one-sentence scope
+- `tech_stack`: technologies used
+- `business_flow`: core business path (step1 → step2 → step3)
+- `code_map`: each directory/file with its PURPOSE (not just path)
+- `danger_zones`: files that are risky to modify and WHY
+- `external_deps`: databases, APIs, services this domain depends on
+- `pitfalls/decisions/patterns`: filled from existing code patterns, initially empty arrays
+
+The handbook.json is for a NEW teammate to understand this domain in 2 minutes.
+
 ## Constraints
 - Only document what ACTUALLY EXISTS. Do not invent domains.
 - Verify file paths exist before listing them in files.
+- Read at least 3-5 key files per Worker to understand business flow before writing handbook.
 - 8-15 Workers is typical for a medium project.
 - Write NO comments in JSON.
 ```
@@ -774,53 +820,44 @@ The Leader agent MUST produce a leader.json that includes:
 
 **Purpose:** Let the user visually verify the task decomposition and Worker overview before any code is written.
 
-The `dag-template.html` renders a **two-panel dashboard** directly from `leader.json`:
+1. **Sync Workers to hub**: Run the sync script to push all worker metadata to hub:
+   ```bash
+   HUB_BUSINESS={business-code} node scripts/sync-workers.cjs .mycompany/workers/
+   ```
+   The script comes from the agent-hub project. If `sync-workers.cjs` is not in the project, copy it from `{agent-hub-path}/scripts/sync-workers.cjs`.
 
-| Panel | Data Source | When Visible |
-|-------|------------|--------------|
-| **Workers** (top) | `leader.json` → `workers[]` | Always — shows all persistent domain/infra Workers |
-| **Tasks** (bottom) | `leader.json` → `dag[]` | Only when tasks exist; shows layered DAG with dependency arrows |
+2. **Sync DAG to hub**: For each task in dag[], call `mcp__hub__hub_sync_dag({ task_id, title, status, assigned_worker })`.
 
-Both panels auto-refresh every 2s via polling `leader.json`. The template is **fully data-driven** — no project-specific content is hardcoded. The `goal` field from `leader.json` is displayed in the stats bar.
+3. **Open Dashboard**: Tell the user to open the team's Dashboard page:
+   ```
+   https://hub.stifer.xyz/team/{business-code}
+   ```
+   They can see Workers, Task DAG, Locks, Playbooks, and Events all in one place.
 
-**Template data contract — the `leader.json` MUST include:**
+3. **Present to User**: Summarize: total Workers, domain vs infra breakdown, busy/idle count, pending tasks. Ask for confirmation.
 
-- `goal` — project goal string (shown in stats bar header)
-- `workers[]` — array of Worker objects with: `id`, `title`, `scope`, `domain` (bool), `files[]`, `status` (idle/busy), `currentTask` (string|null), `owner` (string), `history[]`
-- `dag[]` — array of task objects with: `taskId`, `title`, `description`, `status`, `assignedWorker`, `dependencies[]`, `outputFiles[]`, `claimedBy`, `claimedAt`
-- `architectureLayers` — `{ "L0_Config": ["T1","T2"], ... }` mapping taskIds to layers
-- `layerLabels` — `{ "L0_Config": "配置层", ... }` human-readable layer names
+### Phase 1.6 — Validation Gate (MANDATORY — before any Worker dispatch)
 
-### Step 1: Start Local File Server
-
-```bash
-cd ".mycompany" && python3 -m http.server 8765
-```
-
-If port 8765 is in use, kill the old process first.
-
-### Step 2: Copy DAG HTML Template
-
-**Always copy from the skill directory** — do NOT edit dag.html by hand:
+**After Phase 1.5 and BEFORE entering Phase 2, run the validation script to ensure leader.json meets schema requirements.**
 
 ```bash
-cp "$SKILL_DIR/dag-template.html" ".mycompany/dag.html"
+node .mycompany/scripts/validate.js
 ```
 
-The template is a standalone HTML file. It fetches `leader/leader.json` via relative URL, so it MUST be served over HTTP — `file://` will fail due to CORS.
+**What it checks:**
+- All required top-level fields (sessionId, goal, status, workers, dag)
+- Every worker has: id, title, scope, domain, files, status
+- No duplicate worker ids
+- Every task has: taskId, title, status, assignedWorker, dependencies, outputFiles
+- taskId matches pattern (T1, T2...)
+- Every task's assignedWorker exists in workers[]
+- No circular dependencies in DAG
+- Every worker has a handbook.json AND experience.json in `.mycompany/workers/{id}/`
+- templates/handbook.json exists
 
-### Step 3: Open in Browser
+**If validation fails:** Fix the issues in leader.json (or re-dispatch Leader with the error list) and re-run validate.js. Do NOT proceed to Phase 2 until it passes.
 
-Open via server URL:
-```
-http://localhost:8765/dag.html
-```
-
-### Step 4: Present to User
-
-Summarize: total Workers, domain vs infra breakdown, busy/idle count, pending tasks. Ask for confirmation.
-
----
+**The validation script:** Copy `validate.js` from the skill directory to `.mycompany/scripts/validate.js` during init. The script is a standalone Node.js file — no dependencies, runs anywhere Node is available.
 
 ## Phase 2 — Worker Execution
 
@@ -870,7 +907,34 @@ After the task-specific instructions above, EVERY dispatch prompt MUST end with:
 
 ### 🔗 agent-hub 联动（v2.0，MUST include in EVERY dispatch）
 
-如果项目已接入 agent-hub（`.mcp.json` 或 `C:\Users\15775\.claude.json` 中配置了 `hub` MCP Server），Leader 和 Worker 必须通过 MCP 工具同步状态。**hub 未登录时工具调用会返回错误提示，此时跳过同步即可——不要阻塞任务执行。**
+如果项目已接入 agent-hub（`.mcp.json` 或 `~/.claude.json` 中配置了 `hub` MCP Server），Leader 和 Worker 必须通过 MCP 工具同步状态。
+
+**hub 未登录时工具调用会返回错误提示，此时跳过同步即可——不要阻塞任务执行。**
+
+### Pre-flight Hub 连通性检查（MANDATORY — Leader 每次启动时执行）
+
+Leader 在 Phase 1 开始分派任务前，**必须先检查 hub 是否可达**，并区分三种状态：
+
+```
+调用 mcp__hub__hub_list_workers 或 hub_heartbeat
+  │
+  ├─ 成功返回 → ✅ Hub 已连接。正常使用全套 MCP 工具同步。
+  │
+  ├─ 返回 "未登录" / auth error → ⚠️ Hub 已配置但未登录。
+  │   告诉用户："Agent Hub 已配置但需要登录。在浏览器打开
+  │   https://hub.stifer.xyz 登录后即可同步。"
+  │   后续所有 hub MCP 调用静默跳过。
+  │
+  └─ 返回 "no such tool" / MCP server not found → ❌ Hub MCP 未配置。
+      触发 Phase 0 的 Agent Hub 连接引导（选项 [1][2][3]）。
+      在用户完成配置之前，后续所有 hub MCP 调用静默跳过。
+```
+
+**关键原则**：无论 hub 是否可用，任务执行都不应被阻塞。但 Leader **必须**明确告知用户当前 hub 状态，不允许"不知道连没连，反正没报错"的灰色状态。
+
+### 跨机器路径适配
+
+`.mcp.json` 中的 `args` 路径是本机绝对路径。如果项目 `.mcp.json` 已在 `.gitignore` 中，每台机器自己生成，无此问题。如果尚未 gitignore，Leader 在检测到路径指向不存在的文件时（当前机器 ≠ 生成机器），提示用户并自动修正。
 
 **Leader 派发前**：
 ```
@@ -910,13 +974,16 @@ The entire Phase 2 is a **loop**: pull → claim → commit+push (lock) → disp
 ```
 
 1. **`git pull`** — get latest leader.json
-2. For each ready task (status=pending, deps satisfied, no unexpired claim):
+2. **Sync all DAG tasks to hub** — for each task in dag[], call `mcp__hub__hub_sync_dag({ task_id, title, status, assigned_worker })`. This makes the Dashboard DAG tab live.
+3. For each ready task (status=pending, deps satisfied, no unexpired claim):
    - **Claim the task**: set `claimedBy`, `claimedAt`, task `status: "in_progress"`
    - **Set Worker busy**: set `workers[].status: "busy"`, `workers[].currentTask: taskId`
+   - **Sync task to hub**: `mcp__hub__hub_sync_dag({ task_id, title, status: "in_progress", assigned_worker })`
    - **`git commit + git push`** — lock acquisition (if push fails, abandon and try another task)
    - **Dispatch** the worker agent
-3. Dispatch up to **3 Workers in parallel**. Queue remaining.
-4. After Worker completes, read its report → proceed to Phase 2.5
+4. Dispatch up to **3 Workers in parallel**. Queue remaining.
+5. After Worker completes, read its report → proceed to Phase 2.5
+6. **After review**, sync completed tasks to hub: `mcp__hub__hub_sync_dag({ task_id, title, status: "completed", assigned_worker })`
 
 ### Phase 2.5 — Review Gate (MANDATORY)
 

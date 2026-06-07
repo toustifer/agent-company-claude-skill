@@ -28,6 +28,10 @@ Do NOT start decomposing until you understand the affected Workers' domains.
 3. Decompose into concrete, independent subtasks. Each must be completable by one Worker in one session.
 4. Assign each task to an existing Worker. Only create new Workers for genuinely new business domains.
 5. Write `.mycompany/leader/leader.json`.
+6. **Create worker files**: For every worker in workers[], ensure `.mycompany/workers/{id}/handbook.json` and `experience.json` exist. Use the template at `.mycompany/templates/handbook.json`.
+7. **Auto-configure hub Dashboard**: Check if `hub` MCP is in the user's global `~/.claude.json` under `mcpServers`. If it exists but project has no `.mcp.json`, copy the config to project root `.mcp.json` so the Dashboard link works. Tell the user: "Dashboard: https://hub.stifer.xyz/team/{business-code}".
+8. **Sync workers to hub**: Copy `sync-workers.cjs` from agent-hub if not present, then run `HUB_BUSINESS={code} node sync-workers.cjs .mycompany/workers/`. Also sync DAG: for each task, call `mcp__hub__hub_sync_dag({...})`. After this, the Dashboard must show Workers and DAG data. Verify by checking the Dashboard link.
+9. **Validate**: Run `node .mycompany/scripts/validate.js`. If it fails (exit ≠ 0), fix ALL errors and re-run until it passes. Do NOT report completion until validation passes.
 
 ## 2.5 — Git Collaboration Protocol（自动执行，不可跳过）
 
@@ -181,15 +185,20 @@ After the session ends, write a diary entry to `.mycompany/leader/diary/{YYYY-MM
 - **Git sync IS the lock**: Before dispatching ANY Worker, execute the full Git Collaboration Protocol (section 2.5). Before claiming any task, `git pull`. After any leader.json change, `git commit + git push`. Skip this and you risk two developers dispatching the same Worker.
 - **identity.json is required**: Check `.mycompany/identity.json` exists with a valid `userId`. If not, prompt user to set it — do NOT proceed without identity.
 - **Self-evolve**: Before decomposing, read `.mycompany/playbook/reviewer.md` for verification guardrails and `.mycompany/leader/playbook.md` for decomposition guardrails. After each session, scan for new patterns (any failure that happened ≥2 times) and draft new playbook rules. Present them to the user for approval. The playbook IS the team's memory — keep it alive.
+- **Validate before dispatch**: After writing leader.json, run `node .mycompany/scripts/validate.js`. If exit code ≠ 0, you MUST fix every error before proceeding. A task with `taskId` missing or `assignedWorker` pointing to a non-existent worker WILL break the entire pipeline. Never skip this step.
 
 ## Harness Protocol (自动执行，不可跳过)
 
 ### Pre-flight（每次分派 Worker 前）
 1. **Check identity**: 读 `.mycompany/identity.json`。如果 `userId` 为空或文件不存在 → 提示用户设置，**不继续直到身份确认**。
 2. **Git sync**: `git pull` → check for unclaimed tasks → claim task with `claimedBy` = your userId → `git commit + git push` (see section 2.5 for full protocol)
-3. 读 leader/playbook.md，检查当前 task 是否匹配任何 LDR 规则的触发条件
-4. 如果匹配 → 把对应规则写入 dispatch prompt 的 Constraints 段落
-5. 告诉 Worker 读 playbook/worker.md 中匹配触发条件的 WKR 规则
+3. **Agent Hub 连通性检查（MANDATORY）**：尝试调用 `mcp__hub__hub_list_workers` 或 `mcp__hub__hub_heartbeat`。三种结果：
+   - ✅ 成功 → Hub 已连接。正常使用全套 MCP 工具同步 DAG、心跳、锁。
+   - ⚠️ auth error / 未登录 → 告诉用户："Agent Hub 已配置但需要登录。浏览器打开 https://hub.stifer.xyz 登录即可。" 后续 hub 调用静默跳过，不阻塞任务。
+   - ❌ tool not found / MCP server 不可用 → `.mcp.json` 未配置或路径错误。触发 SKILL.md Phase 0 的交互引导（选项 [1][2][3]），**不可静默跳过**。在用户完成配置前，hub 调用静默跳过。
+4. 读 leader/playbook.md，检查当前 task 是否匹配任何 LDR 规则的触发条件
+5. 如果匹配 → 把对应规则写入 dispatch prompt 的 Constraints 段落
+6. 告诉 Worker 读 playbook/worker.md 中匹配触发条件的 WKR 规则
 
 ### Post-flight（每次 Worker 完成后）
 1. 对比 Worker 的 error/retry 记录和 playbook 现有规则
